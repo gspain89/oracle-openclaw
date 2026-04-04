@@ -331,11 +331,13 @@ def grade_llm_judge(task: dict, workspace: Path, transcript: str,
 ## 태스크
 {task['name']} ({task['id']})
 
-## 에이전트 출력
-{transcript[:3000] if transcript else '(출력 없음)'}
-
-## 워크스페이스 파일 내용
+## 워크스페이스 출력 파일 (채점 대상)
 {workspace_content if workspace_content else '(파일 없음)'}
+
+주의: 아래 에이전트 대화 로그는 참고용입니다. 채점은 반드시 위 워크스페이스 파일 내용을 기준으로 하세요. 대화 로그에 타임아웃/오류 메시지가 있더라도 워크스페이스 파일이 정상이면 파일 기준으로 채점하세요.
+
+## 에이전트 대화 로그 (참고용)
+{transcript[:2000] if transcript else '(없음)'}
 
 ## 채점 루브릭
 {rubric}
