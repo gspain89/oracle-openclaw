@@ -46,15 +46,19 @@ def slug_from_model(model_id: str) -> str:
     return model_id.replace("/", "-").replace(":", "-").replace(".", "-")
 
 
-def ensure_agent(agent_id: str, model: str, workspace: Path):
-    """OpenClaw 에이전트가 없으면 생성"""
+def create_agent(agent_id: str, model: str, workspace: Path):
+    """OpenClaw 에이전트 생성 (기존 동명 에이전트는 삭제 후 재생성)"""
+    # 동명 에이전트가 있으면 삭제 — 세션 격리를 위해 항상 새로 생성
     result = subprocess.run(
         ["openclaw", "agents", "list"],
         capture_output=True, text=True, timeout=30
     )
     if agent_id in result.stdout:
-        print(f"  에이전트 재사용: {agent_id}")
-        return
+        subprocess.run(
+            ["openclaw", "agents", "delete", agent_id, "--yes"],
+            capture_output=True, text=True, timeout=30
+        )
+        print(f"  기존 에이전트 삭제: {agent_id}")
 
     workspace.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -70,11 +74,23 @@ def ensure_agent(agent_id: str, model: str, workspace: Path):
     print(f"  에이전트 생성: {agent_id} (model={model})")
 
 
+def delete_agent(agent_id: str):
+    """에이전트 삭제 (세션/워크스페이스 정리)"""
+    subprocess.run(
+        ["openclaw", "agents", "delete", agent_id, "--yes"],
+        capture_output=True, text=True, timeout=30
+    )
+    print(f"  에이전트 삭제: {agent_id}")
+
+
 def setup_workspace(workspace: Path, task: dict):
     """워크스페이스를 초기화하고 태스크 입력 파일을 복사"""
-    # 기존 파일 정리 (디렉토리 자체는 유지)
+    # OpenClaw 관리 디렉토리는 보존하고 사용자 파일만 정리
+    PRESERVE_DIRS = {".git", ".openclaw"}
     if workspace.exists():
         for item in workspace.iterdir():
+            if item.name in PRESERVE_DIRS:
+                continue
             if item.is_file():
                 item.unlink()
             elif item.is_dir():
@@ -107,12 +123,14 @@ def run_agent_task(agent_id: str, session_id: str, prompt: str,
         "openclaw", "agent",
         "--agent", agent_id,
         "--session-id", session_id,
+        "--timeout", str(timeout),
         "--message", prompt
     ]
     start = time.time()
     try:
+        # subprocess timeout은 OpenClaw CLI timeout보다 여유 있게 설정
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout
+            cmd, capture_output=True, text=True, timeout=timeout + 60
         )
         elapsed = time.time() - start
         return {
@@ -256,14 +274,7 @@ def main():
         output_dir = SCRIPT_DIR / "results" / f"{model_slug}_{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 에이전트 생성
-    run_id = uuid.uuid4().hex[:6]
-    agent_id = f"clawbench-{model_slug}"
-    workspace = Path(f"/tmp/claw-bench-ko/{run_id}/workspace")
-    print(f"\n에이전트 설정: {agent_id}")
-    ensure_agent(agent_id, args.model, workspace)
-
-    # 태스크 실행
+    # 태스크 실행 — 세션 격리를 위해 태스크마다 에이전트를 새로 생성/삭제
     all_results = {}  # task_id → [run results]
     total_start = time.time()
 
@@ -275,10 +286,19 @@ def main():
             run_label = f"run {run_i + 1}/{args.runs}" if args.runs > 1 else ""
             print(f"\n── {task['name']} ({task_id}) {run_label} ──")
 
+            # 태스크마다 고유 에이전트 생성 (세션 격리)
+            run_id = uuid.uuid4().hex[:6]
+            agent_id = f"clawbench-{model_slug}-{task_id}-{run_i}"
+            workspace = Path(f"/tmp/claw-bench-ko/{run_id}/workspace")
+            create_agent(agent_id, args.model, workspace)
+
             result = run_single_task(
                 agent_id, task, workspace, args.judge, run_i
             )
             all_results[task_id].append(result)
+
+            # 에이전트 삭제 — 다음 태스크와 세션이 섞이지 않도록
+            delete_agent(agent_id)
 
             score_pct = f"{result['score'] * 100:.1f}%"
             print(f"  점수: {score_pct} ({result['duration_seconds']}초)")

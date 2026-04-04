@@ -4,7 +4,7 @@
   "category": "korean_system",
   "grading_type": "hybrid",
   "timeout_seconds": 180,
-  "prompt": "workspace에 있는 order.json 파일을 읽으세요. 주문 데이터가 JSON 형식으로 들어 있습니다.\n\n이 데이터를 바탕으로 한국 세금계산서(전자세금계산서) 형식의 JSON을 생성하세요.\n\n세금계산서 필수 항목:\n- 공급자 정보: 사업자등록번호, 상호, 대표자, 업태, 종목, 주소\n- 공급받는자 정보: 사업자등록번호, 상호, 대표자, 업태, 종목, 주소\n- 작성일자\n- 품목 목록: 각 품목의 품명, 규격, 수량, 단가, 공급가액, 세액\n- 합계: 총 공급가액, 총 세액(부가가치세 10%), 총 합계금액\n\n계산 규칙:\n- 공급가액 = 수량 × 단가\n- 세액 = 공급가액 × 0.1 (원 단위 절사)\n- 합계금액 = 총 공급가액 + 총 세액\n\n결과를 workspace에 invoice.json 파일로 저장하세요.",
+  "prompt": "workspace에 있는 order.json 파일을 읽으세요. 주문 데이터가 JSON 형식으로 들어 있습니다.\n\n이 데이터를 바탕으로 한국 세금계산서(전자세금계산서) 형식의 JSON을 생성하세요.\n\n세금계산서 필수 항목 (JSON 키 이름은 반드시 아래 영문 키를 사용):\n- \"supplier\": 공급자 정보 (biz_no, company_name, ceo_name, biz_type, biz_item, address)\n- \"buyer\": 공급받는자 정보 (biz_no, company_name, ceo_name, biz_type, biz_item, address)\n- \"issue_date\": 작성일자\n- \"items\": 품목 배열 (각 품목: name, spec, quantity, unit_price, supply_amount, tax_amount)\n- \"total\": 합계 (supply_amount, tax_amount, total_amount)\n\n계산 규칙:\n- 공급가액(supply_amount) = 수량(quantity) × 단가(unit_price)\n- 세액(tax_amount) = 공급가액 × 0.1 (원 단위 절사)\n- 합계금액(total_amount) = 총 공급가액 + 총 세액\n\n결과를 workspace에 invoice.json 파일로 저장하세요.",
   "workspace_files": ["order.json"],
   "grading": {
     "automated": {
