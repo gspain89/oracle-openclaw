@@ -1,0 +1,40 @@
+{
+  "order_id": "ORD-2024-0412",
+  "order_date": "2024-04-12",
+  "supplier": {
+    "business_number": "123-45-67890",
+    "company_name": "스마트테크 주식회사",
+    "representative": "김영호",
+    "business_type": "제조업",
+    "business_item": "전자부품",
+    "address": "서울특별시 금천구 가산디지털1로 168"
+  },
+  "buyer": {
+    "business_number": "987-65-43210",
+    "company_name": "그린로지스틱스 주식회사",
+    "representative": "박수진",
+    "business_type": "물류업",
+    "business_item": "운송, 창고",
+    "address": "경기도 이천시 마장면 덕평로 845"
+  },
+  "items": [
+    {
+      "name": "IoT 센서 모듈 (온습도)",
+      "specification": "SHT-40A",
+      "quantity": 500,
+      "unit_price": 8500
+    },
+    {
+      "name": "GPS 트래커",
+      "specification": "GT-200K",
+      "quantity": 200,
+      "unit_price": 12000
+    },
+    {
+      "name": "산업용 게이트웨이",
+      "specification": "GW-LTE-100",
+      "quantity": 50,
+      "unit_price": 25000
+    }
+  ]
+}

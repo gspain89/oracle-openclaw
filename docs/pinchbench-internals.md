@@ -1,0 +1,334 @@
+# PinchBench 내부 동작 분석
+
+최종 수정: 2026-04-04
+PinchBench 위치: `~/pinchbench-skill/` (서버)
+의존성: Python 3.10+, PyYAML, OpenClaw CLI
+
+---
+
+## 1. PinchBench란
+
+PinchBench는 OpenClaw 에이전트의 실무 능력을 측정하는 벤치마크 도구다. 24개 태스크를 에이전트에게 수행시키고, 자동 채점 + LLM 판정으로 점수를 매긴다.
+
+핵심 특징:
+- 모든 모델 호출은 `openclaw agent` CLI를 통해 수행 — 외부 API 직접 호출 없음
+- 테스트 대상 모델과 채점(judge) 모델이 분리되어 있음
+- 두 모델 모두 OpenClaw 에이전트로 실행됨
+
+
+## 2. 실행 명령
+
+```bash
+cd ~/pinchbench-skill/scripts
+
+# automated 태스크만 (judge 불필요, 9개)
+python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --suite automated-only
+
+# 전체 24개 태스크 (judge 필요)
+python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --judge azure-openai/gpt-5.2-chat
+
+# 3회 반복 실행 (best/average 산출용)
+python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --judge azure-openai/gpt-5.2-chat --runs 3
+```
+
+### CLI 주요 옵션
+
+| 옵션 | 기본값 | 설명 |
+|------|--------|------|
+| `--model` | (필수) | 테스트 대상 모델 |
+| `--judge` | `openrouter/anthropic/claude-opus-4.5` | 채점 모델 (llm_judge/hybrid 태스크용) |
+| `--suite` | `all` | `all`, `automated-only`, 또는 `task_00_sanity,task_09_files` 등 |
+| `--runs` | 1 | 태스크당 반복 횟수 |
+| `--timeout-multiplier` | 1.0 | 타임아웃 배율 |
+| `--verbose` | off | 상세 로그 (transcript, workspace 내용 출력) |
+
+
+## 3. 에이전트 생성 시점
+
+PinchBench는 벤치마크 실행 시 에이전트를 **동적으로 생성**한다. 실행 전에 미리 만들어둘 필요 없다.
+
+### 3.1 테스트 에이전트 생성 시점
+
+```
+benchmark.py main()
+    │
+    ├─ model_slug = slugify_model(args.model)
+    │   "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
+    │   → "openrouter-nvidia-nemotron-3-super-120b-a12b-free"
+    │
+    ├─ agent_id = f"bench-{model_slug}"
+    │   → "bench-openrouter-nvidia-nemotron-3-super-120b-a12b-free"
+    │
+    ├─ agent_workspace = Path(f"/tmp/pinchbench/{run_id}/agent_workspace")
+    │
+    └─ ensure_agent_exists(agent_id, args.model, agent_workspace)  ← ★ 여기서 생성
+        │
+        ├─ openclaw agents list → 이미 존재하는지 확인
+        │   ├─ 존재하고 workspace 동일 → 그대로 사용 (재생성 안 함)
+        │   ├─ 존재하지만 workspace 다름 → 삭제 후 재생성
+        │   └─ 존재하지 않음 → 새로 생성
+        │
+        └─ openclaw agents add bench-openrouter-nvidia-... \
+               --model openrouter/nvidia/nemotron-3-super-120b-a12b:free \
+               --workspace /tmp/pinchbench/0015/agent_workspace \
+               --non-interactive
+```
+
+**정리:** 에이전트는 `benchmark.py`의 `main()` 시작 직후, 첫 번째 태스크 실행 이전에 1회 생성된다. 이미 같은 이름의 에이전트가 있으면 workspace 경로가 맞는 한 재사용한다.
+
+### 3.2 Judge 에이전트 생성 시점
+
+Judge 에이전트는 테스트 에이전트와 달리 **첫 번째 llm_judge/hybrid 태스크의 채점 시점**에 생성된다.
+
+```
+benchmark.py 태스크 루프
+    │
+    ├─ execute_openclaw_task(task, agent_id, ...)  ← 테스트 에이전트가 태스크 수행
+    │
+    └─ grade_task(task, execution_result, judge_model=args.judge, ...)
+        │
+        ├─ grading_type == "automated" → Python grade() 함수만 실행, judge 불필요
+        │
+        ├─ grading_type == "llm_judge" → _grade_llm_judge(...)
+        │   │
+        │   └─ _ensure_judge_agent(judge_agent_prefix, judge_model, skill_dir)  ← ★ 여기서 생성
+        │       │
+        │       ├─ agent_id = "bench-judge-{slugify(judge_model)}"
+        │       │   → "bench-judge-azure-openai-gpt-5-2-chat"
+        │       │
+        │       └─ ensure_agent_exists(agent_id, judge_model, workspace)
+        │           → openclaw agents add bench-judge-azure-openai-gpt-5-2-chat \
+        │               --model azure-openai/gpt-5.2-chat \
+        │               --workspace /tmp/pinchbench/judge/workspace
+        │
+        └─ grading_type == "hybrid" → automated 채점 + llm_judge 채점 결합
+```
+
+**정리:** Judge 에이전트는 채점 단계에서 lazy하게 생성된다. automated-only 태스크만 실행하면 judge 에이전트는 아예 생성되지 않는다.
+
+
+## 4. 태스크 실행 흐름
+
+하나의 태스크가 실행되는 전체 과정:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Phase 1: 태스크 준비                                              │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  prepare_task_workspace(skill_dir, run_id, task, agent_id)       │
+│  ├─ /tmp/pinchbench/{run_id}/agent_workspace/ 디렉토리 생성       │
+│  └─ task.workspace_files에 정의된 파일을 workspace에 복사          │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│ Phase 2: 에이전트 실행                                            │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  subprocess.run([                                                │
+│      "openclaw", "agent",                                        │
+│      "--agent", "bench-openrouter-nvidia-nemotron-...",           │
+│      "--session-id", "task_00_sanity_1712345678000",             │
+│      "--message", task.prompt     ← 태스크의 Prompt 섹션 전송     │
+│  ], cwd=workspace, timeout=task.timeout_seconds)                 │
+│                                                                  │
+│  에이전트가 OpenClaw을 통해 LLM 호출 → 응답 생성                   │
+│  에이전트는 도구(파일 읽기/쓰기, 웹 검색 등)를 사용할 수 있음         │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│ Phase 3: Transcript 수집                                         │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  _load_transcript(agent_id, session_id, start_time)              │
+│  ├─ ~/.openclaw/agents/{agent-id}/sessions/*.jsonl 파일 읽기      │
+│  └─ 에이전트의 전체 대화 이력(턴, 도구 호출, 응답) 추출             │
+│                                                                  │
+│  _extract_usage_from_transcript(transcript)                      │
+│  └─ 토큰 사용량, 비용, 요청 횟수 집계                              │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│ Phase 4: 채점                                                     │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  grade_task(task, execution_result, ...)                          │
+│  ├─ automated:  task 파일 내 grade() Python 함수 실행              │
+│  │   └─ transcript + workspace_path를 인자로 전달                  │
+│  │   └─ 반환: {"score": 0.0~1.0, ...}                            │
+│  │                                                                │
+│  ├─ llm_judge:  judge 에이전트가 채점                              │
+│  │   └─ (아래 §5 참조)                                            │
+│  │                                                                │
+│  └─ hybrid:     automated 점수와 llm_judge 점수를 가중 결합         │
+│      └─ 기본 가중치: automated 50% + llm_judge 50%                │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+
+## 5. Judge 채점 상세 흐름
+
+LLM Judge는 테스트 에이전트의 수행 결과(transcript + workspace)를 다른 LLM에게 평가시키는 방식이다.
+
+```
+_grade_llm_judge()
+    │
+    ├─ 1. Transcript 요약
+    │   _summarize_transcript(transcript)
+    │   └─ 에이전트의 대화 내역을 텍스트로 변환
+    │
+    ├─ 2. Workspace 파일 읽기
+    │   _read_workspace_files(workspace)
+    │   └─ 에이전트가 생성/수정한 파일 내용 수집
+    │
+    ├─ 3. Judge 프롬프트 구성
+    │   _build_judge_prompt(task, transcript_summary, rubric, workspace_content)
+    │   └─ 태스크 설명 + 에이전트 행동 기록 + 채점 기준(rubric) → 하나의 프롬프트로 결합
+    │
+    ├─ 4. Judge 에이전트 확보
+    │   _ensure_judge_agent("bench-judge", judge_model, skill_dir)
+    │   └─ OpenClaw 에이전트 생성 (§3.2 참조)
+    │
+    ├─ 5. Judge 에이전트에 프롬프트 전송
+    │   run_openclaw_prompt(agent_id, prompt, workspace, timeout=180초)
+    │   │
+    │   ├─ Bootstrap 파일 제거 (SOUL.md, IDENTITY.md 등)
+    │   │   └─ Judge가 불필요한 페르소나/컨텍스트 없이 순수 채점에 집중하도록
+    │   │
+    │   ├─ 프롬프트가 3000자 초과 시 chunk 분할 전송
+    │   │   └─ "Part 1/3: ...", "Part 2/3: ...", "Part 3/3 (final): ..."
+    │   │
+    │   └─ subprocess.run(["openclaw", "agent", "--agent", judge_agent_id,
+    │       "--session-id", "judge_1712345678000", "--message", chunk])
+    │       └─ Judge 모델(GPT-5.2)이 채점 결과를 JSON으로 응답
+    │
+    ├─ 6. 응답 파싱
+    │   _parse_judge_response(transcript)
+    │   └─ JSON 추출 (```json 코드블록 우선, 이후 중괄호 패턴 탐색)
+    │
+    └─ 7. 점수 정규화
+        _normalize_judge_response(parsed)
+        └─ { "scores": {...}, "total": 0.0~1.0, "notes": "..." }
+```
+
+### Judge의 채점 기준 (Rubric)
+
+각 태스크의 `.md` 파일에 `LLM Judge Rubric` 섹션이 정의되어 있다. 없으면 `Grading Criteria` 섹션의 체크리스트로 대체한다.
+
+Judge에게 전달되는 프롬프트 구조:
+```
+[태스크 설명]
+[에이전트가 수행한 transcript 요약]
+[에이전트가 생성/수정한 파일 내용]
+[채점 기준 (rubric)]
+→ "위 기준에 따라 0.0~1.0 점수를 JSON으로 반환하라"
+```
+
+
+## 6. 태스크 포맷
+
+각 태스크는 `tasks/task_XX_name.md` 파일로 정의된다.
+
+```markdown
+---
+id: task_00_sanity
+name: Sanity Check
+category: basic
+grading_type: automated          ← automated | llm_judge | hybrid
+timeout_seconds: 60
+workspace_files: []              ← 태스크 시작 시 workspace에 복사할 파일
+grading_weights:                 ← hybrid 전용
+  automated: 0.5
+  llm_judge: 0.5
+---
+
+## Prompt
+(에이전트에게 보낼 지시문)
+
+## Expected Behavior
+(기대 행동 설명 — 채점 참고용)
+
+## Grading Criteria
+- [ ] 항목 1
+- [ ] 항목 2
+
+## Automated Checks
+```python
+def grade(transcript: list, workspace_path: str) -> dict:
+    # transcript: 에이전트 대화 이력
+    # workspace_path: 에이전트 작업 디렉토리 경로
+    return {"score": 1.0, "max_score": 1.0, "details": {...}}
+`` `
+
+## LLM Judge Rubric
+(Judge 모델에게 전달할 상세 채점 기준)
+```
+
+### 24개 태스크 분류
+
+| 채점 방식 | 태스크 수 | 설명 |
+|-----------|----------|------|
+| `automated` | 9개 | Python 함수가 자동 채점. Judge 불필요 |
+| `llm_judge` | 7개 | LLM이 transcript를 읽고 채점 |
+| `hybrid` | 8개 | 자동 채점 50% + LLM 채점 50% (가중치 태스크별 설정 가능) |
+
+
+## 7. 점수 산출 방식
+
+### 단일 실행 (--runs 1)
+각 태스크의 점수(0.0~1.0)를 합산하여 백분율로 표시:
+```
+총점 = Σ(태스크 점수) / 태스크 수 × 100%
+```
+
+### 복수 실행 (--runs N)
+각 태스크를 N번 반복 실행하여:
+- **best score**: 각 태스크의 최고 점수 사용
+- **average score**: 각 태스크의 평균 점수 사용
+
+공식 PinchBench 리더보드는 best와 average를 모두 게시한다.
+
+
+## 8. 우리 환경에서의 실행 계획
+
+```
+테스트 모델: openrouter/nvidia/nemotron-3-super-120b-a12b:free (무료)
+Judge 모델: azure-openai/gpt-5.2-chat (Azure 크레딧)
+실행 명령:
+  python3 benchmark.py \
+    --model openrouter/nvidia/nemotron-3-super-120b-a12b:free \
+    --judge azure-openai/gpt-5.2-chat \
+    --runs 3
+
+예상 결과:
+  - 테스트 에이전트 생성: bench-openrouter-nvidia-nemotron-3-super-120b-a12b-free
+  - Judge 에이전트 생성: bench-judge-azure-openai-gpt-5-2-chat
+  - 24 태스크 × 3 실행 = 72회 테스트 에이전트 호출
+  - llm_judge/hybrid 15개 태스크 × 3 실행 = 45회 judge 호출
+
+토큰 비용 (judge 기준, 추정):
+  - judge 1회 호출: ~12,000 input tokens (프롬프트+transcript)
+  - 45회 × 12,000 = ~540,000 input tokens
+  - Azure GPT-5.2 가격은 사용자 크레딧으로 처리
+```
+
+
+## 9. 파일 구조
+
+```
+~/pinchbench-skill/
+├── scripts/
+│   ├── benchmark.py          ← 메인 실행 스크립트
+│   ├── lib_agent.py          ← 에이전트 생성/실행/세션 관리
+│   ├── lib_grading.py        ← 채점 로직 (automated + llm_judge + hybrid)
+│   ├── lib_tasks.py          ← 태스크 로더 (YAML frontmatter 파싱)
+│   ├── lib_upload.py         ← 리더보드 업로드
+│   └── run.sh                ← 쉘 래퍼
+├── tasks/
+│   ├── TASK_TEMPLATE.md      ← 태스크 작성 템플릿
+│   ├── task_00_sanity.md     ← 기본 동작 확인
+│   ├── task_01_calendar.md   ← 일정 관리
+│   ├── ...
+│   └── task_24_polymarket_briefing.md
+├── tests/
+│   └── test_lib_grading.py   ← 채점 로직 단위 테스트
+└── crab.txt                  ← ASCII 아트 (시작 시 출력)
+```

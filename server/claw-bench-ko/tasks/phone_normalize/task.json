@@ -1,0 +1,29 @@
+{
+  "id": "phone_normalize",
+  "name": "전화번호 정규화",
+  "category": "data_processing",
+  "grading_type": "automated",
+  "timeout_seconds": 120,
+  "prompt": "workspace에 있는 phones.txt 파일을 읽으세요. 한국 전화번호 25개가 한 줄에 하나씩 다양한 형식으로 적혀 있습니다.\n\n모든 전화번호를 아래 표준 형식으로 정규화하세요:\n- 휴대폰(010): +82-10-XXXX-XXXX\n- 서울(02): +82-2-XXXX-XXXX (8자리인 경우) 또는 +82-2-XXX-XXXX (7자리인 경우)\n- 기타 지역번호(031, 032 등): +82-XX-XXXX-XXXX 또는 +82-XX-XXX-XXXX\n- 인터넷전화(070): +82-70-XXXX-XXXX\n- 수신자부담(080): +82-80-XXX-XXXX\n- 대표번호(1588, 1577, 1544, 1600 등 4자리로 시작): 대표번호는 국제번호가 없으므로 그대로 XXXX-XXXX 형식\n\n결과를 workspace에 result.json 파일로 저장하세요. JSON 배열 형식이며, 각 요소는 {\"original\": \"원본\", \"normalized\": \"정규화된 번호\"} 객체입니다.",
+  "workspace_files": ["phones.txt"],
+  "grading": {
+    "automated": {
+      "output_file": "result.json",
+      "checks": [
+        {"type": "file_exists", "path": "result.json"},
+        {"type": "json_valid", "path": "result.json"},
+        {"type": "json_array_length", "path": "result.json", "expected": 25},
+        {"type": "json_field_equals", "path": "result.json", "field": "[0].normalized", "expected": "+82-10-1234-5678"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[1].normalized", "expected": "+82-10-1234-5678"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[2].normalized", "expected": "+82-10-1234-5678"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[5].normalized", "expected": "+82-2-1234-5678"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[6].normalized", "expected": "+82-2-123-4567"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[13].normalized", "expected": "1588-1234"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[14].normalized", "expected": "1577-0000"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[16].normalized", "expected": "+82-70-1234-5678"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[22].normalized", "expected": "+82-80-123-4567"},
+        {"type": "json_has_fields", "path": "result.json", "fields": ["original", "normalized"]}
+      ]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "regulation_extract",
+  "name": "법규 요구사항 추출",
+  "category": "korean_system",
+  "grading_type": "hybrid",
+  "timeout_seconds": 180,
+  "prompt": "workspace에 있는 regulation.txt 파일을 읽으세요. 한국 법률(개인정보 보호법) 일부 조항이 들어 있습니다.\n\n각 조항에서 의무사항(해야 하는 것)과 금지사항(해서는 안 되는 것)을 추출하여 구조화된 체크리스트를 만드세요.\n\n각 항목의 필수 필드:\n- article: 조항 번호 (예: \"제15조 제1항\")\n- type: 의무사항이면 \"obligation\", 금지사항이면 \"prohibition\"\n- subject: 누가 (의무/금지의 대상)\n- requirement: 무엇을 해야/하면 안 되는지 (한 문장으로 요약)\n- condition: 적용 조건이 있다면 기술 (없으면 null)\n- penalty_reference: 벌칙 조항 참조가 있다면 기술 (없으면 null)\n\n결과를 workspace에 checklist.json 파일로 저장하세요. JSON 객체 형식이며 {\"items\": [...]} 구조입니다.",
+  "workspace_files": ["regulation.txt"],
+  "grading": {
+    "automated": {
+      "output_file": "checklist.json",
+      "checks": [
+        {"type": "file_exists", "path": "checklist.json"},
+        {"type": "json_valid", "path": "checklist.json"},
+        {"type": "json_field_exists", "path": "checklist.json", "field": "items"},
+        {"type": "json_array_min_length", "path": "checklist.json", "field": "items", "min": 8},
+        {"type": "json_items_have_fields", "path": "checklist.json", "field": "items", "required_fields": ["article", "type", "subject", "requirement"]}
+      ],
+      "weight": 0.5
+    },
+    "judge": {
+      "rubric": "이 태스크는 한국 법률 조항에서 의무사항과 금지사항을 추출하는 작업입니다.\n\n채점 기준 (100점 만점):\n\n추출 완전성 (35점):\n- 제시된 법률 텍스트의 모든 의무사항/금지사항이 빠짐없이 추출되었는지\n- 최소 포함되어야 할 항목:\n  * 제15조: 개인정보 수집·이용 시 동의 획득 의무\n  * 제17조: 제3자 제공 시 동의 획득 의무\n  * 제20조: 정보주체 이외로부터 수집 시 고지 의무\n  * 제21조: 목적 달성 후 파기 의무\n  * 제22조: 동의 시 고지 의무, 동의 거부권 고지 의무\n  * 금지사항: 서비스 제공 거부를 이유로 동의 강제 금지\n\n분류 정확도 (25점):\n- obligation과 prohibition 분류가 정확한지\n- subject(의무 대상)가 정확한지: 개인정보처리자, 정보주체 등\n- condition이 적절히 식별되었는지\n\n요약 품질 (20점):\n- requirement 필드가 원문 의미를 정확히 유지하면서 간결하게 요약되었는지\n- 법률 용어가 적절히 사용되었는지 (정보주체, 개인정보처리자, 동의 등)\n\n구조화 수준 (20점):\n- 조항 번호가 정확한지\n- JSON 구조가 일관적이고 깔끔한지\n- 관련 항목들이 논리적으로 정렬되었는지",
+      "weight": 0.5
+    }
+  }
+}

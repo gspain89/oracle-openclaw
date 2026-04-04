@@ -1,0 +1,32 @@
+{
+  "id": "resume_parse",
+  "name": "이력서 파싱",
+  "category": "korean_system",
+  "grading_type": "hybrid",
+  "timeout_seconds": 180,
+  "prompt": "workspace에 있는 resume.txt 파일을 읽으세요. 한국식 이력서 텍스트가 들어 있습니다.\n\n이 이력서를 파싱하여 구조화된 JSON으로 변환하세요.\n\n필수 필드:\n- name: 성명\n- birth_date: 생년월일 (YYYY-MM-DD 형식)\n- phone: 연락처\n- email: 이메일\n- address: 주소\n- education: 학력 배열 [{school, major, degree, start_date, end_date, status}]\n- experience: 경력 배열 [{company, department, position, start_date, end_date, responsibilities}]\n- certifications: 자격증 배열 [{name, issuer, date}]\n- skills: 기술/역량 배열\n\n날짜는 모두 YYYY-MM 또는 YYYY-MM-DD 형식으로 통일하세요. status 필드는 '졸업', '재학', '수료' 중 하나입니다.\n\n결과를 workspace에 result.json 파일로 저장하세요.",
+  "workspace_files": ["resume.txt"],
+  "grading": {
+    "automated": {
+      "output_file": "result.json",
+      "checks": [
+        {"type": "file_exists", "path": "result.json"},
+        {"type": "json_valid", "path": "result.json"},
+        {"type": "json_field_equals", "path": "result.json", "field": "name", "expected": "이서준"},
+        {"type": "json_field_equals", "path": "result.json", "field": "birth_date", "expected": "1995-03-22"},
+        {"type": "json_field_exists", "path": "result.json", "field": "education"},
+        {"type": "json_field_exists", "path": "result.json", "field": "experience"},
+        {"type": "json_field_exists", "path": "result.json", "field": "certifications"},
+        {"type": "json_field_exists", "path": "result.json", "field": "skills"},
+        {"type": "json_array_min_length", "path": "result.json", "field": "education", "min": 2},
+        {"type": "json_array_min_length", "path": "result.json", "field": "experience", "min": 2},
+        {"type": "json_array_min_length", "path": "result.json", "field": "certifications", "min": 3}
+      ],
+      "weight": 0.5
+    },
+    "judge": {
+      "rubric": "이 태스크는 한국식 이력서 텍스트를 구조화된 JSON으로 파싱하는 작업입니다.\n\n채점 기준 (100점 만점):\n\n추출 정확도 (40점):\n- 인적사항(이름, 생년월일, 연락처, 이메일, 주소)이 정확히 추출되었는지\n- 학력 정보가 모두 추출되었는지 (한양대 컴공 학사, KAIST 석사)\n- 경력 정보가 정확한지 (네이버, 카카오 — 부서, 직급, 기간, 업무내용)\n- 자격증 정보가 누락 없이 추출되었는지 (정보처리기사, SQLD, TOEIC)\n\n날짜 처리 (20점):\n- 다양한 한국식 날짜 표현(2018년 3월, 2018.03, 2018-03 등)이 모두 YYYY-MM 형식으로 통일되었는지\n- '현재', '재직중' 등의 표현이 적절히 처리되었는지\n\n한국 이력서 이해 (20점):\n- 학력 status(졸업/재학/수료)가 정확한지\n- 한국식 직급 체계(사원→대리→과장 등) 반영\n- 병역 관련 정보가 있다면 적절히 처리\n\n데이터 품질 (20점):\n- JSON 구조가 깔끔하고 일관적인지\n- 불필요한 공백이나 특수문자가 정리되었는지\n- skills 배열이 의미 있게 분류되었는지",
+      "weight": 0.5
+    }
+  }
+}

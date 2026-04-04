@@ -1,0 +1,281 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+let data = { meta: { last_updated: null, total_runs: 0, note: '' }, models: [] };
+try {
+  const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'leaderboard.json'), 'utf-8');
+  data = JSON.parse(raw);
+} catch {}
+
+const { meta, models } = data;
+
+const ranked = [...models]
+  .filter(m => m.scores?.pinchbench)
+  .sort((a, b) => (b.scores.pinchbench.score ?? 0) - (a.scores.pinchbench.score ?? 0));
+
+const unranked = models.filter(m => !m.scores?.pinchbench);
+const maxScore = Math.max(...ranked.map(m => m.scores.pinchbench.score), 1);
+const benchCount = [
+  ranked.some(m => m.scores.pinchbench) && 'PinchBench',
+  ranked.some(m => m.scores.agentbench) && 'AgentBench',
+  ranked.some(m => m.scores.korean) && 'Korean',
+].filter(Boolean).length;
+
+const lastDate = meta.last_updated
+  ? new Date(meta.last_updated).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+  : '—';
+
+const chartLabels = JSON.stringify(ranked.map(m => m.name));
+const chartScores = JSON.stringify(ranked.map(m => m.scores.pinchbench.score));
+---
+
+<Layout title="리더보드">
+  <div class="page-header">
+    <h1>AI 에이전트 <span class="accent">리더보드</span></h1>
+    <p>OpenClaw 벤치마크 종합 순위 — Oracle Cloud ARM 서버에서 측정</p>
+    {meta.note && <p class="sample-notice">{meta.note}</p>}
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-value">{models.length}</span>
+      <span class="stat-label">테스트 모델</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{benchCount}</span>
+      <span class="stat-label">벤치마크</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{ranked.length}</span>
+      <span class="stat-label">측정 완료</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{lastDate}</span>
+      <span class="stat-label">최종 업데이트</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="table-wrap">
+      <table id="lb-table">
+        <thead>
+          <tr>
+            <th data-col="rank" data-type="num">#</th>
+            <th data-col="name" data-type="str">모델</th>
+            <th data-col="provider" data-type="str">제공자</th>
+            <th data-col="pinch" data-type="num">PinchBench</th>
+            <th data-col="agent" data-type="num">AgentBench</th>
+            <th data-col="korean" data-type="num">한국어</th>
+            <th data-col="cost" data-type="num">비용/회</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ranked.map((m, i) => (
+            <tr data-rank={i+1} data-pinch={m.scores.pinchbench.score} data-agent={m.scores.agentbench?.score ?? ''} data-korean={m.scores.korean?.score ?? ''} data-cost={m.cost_per_run_usd}>
+              <td class="rank-cell">
+                <span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span>
+              </td>
+              <td class="model-cell">
+                <span class="model-name">{m.name}</span>
+                {m.free && <span class="free-badge">FREE</span>}
+              </td>
+              <td class="provider-cell">{m.provider}</td>
+              <td class="score-cell">
+                <div class="score-bar-wrap">
+                  <div class="score-bar primary" style={`--w:${(m.scores.pinchbench.score / maxScore * 100).toFixed(1)}%`}></div>
+                  <span class="score-value">{m.scores.pinchbench.score.toFixed(1)}</span>
+                </div>
+              </td>
+              <td class="score-cell">
+                {m.scores.agentbench ? (
+                  <div class="score-bar-wrap">
+                    <div class="score-bar secondary" style={`--w:${m.scores.agentbench.score}%`}></div>
+                    <span class="score-value">{m.scores.agentbench.score.toFixed(1)}</span>
+                  </div>
+                ) : <span class="no-data">—</span>}
+              </td>
+              <td class="score-cell">
+                {m.scores.korean ? (
+                  <div class="score-bar-wrap">
+                    <div class="score-bar tertiary" style={`--w:${m.scores.korean.score}%`}></div>
+                    <span class="score-value">{m.scores.korean.score.toFixed(1)}</span>
+                  </div>
+                ) : <span class="no-data">—</span>}
+              </td>
+              <td class="cost-cell">
+                {m.cost_per_run_usd === 0
+                  ? <span class="free-text">$0</span>
+                  : <span>${m.cost_per_run_usd.toFixed(2)}</span>}
+              </td>
+            </tr>
+          ))}
+          {unranked.map(m => (
+            <tr class="unranked" data-rank="999" data-pinch="" data-agent="" data-korean="" data-cost={m.cost_per_run_usd}>
+              <td class="rank-cell"><span class="rank-badge pending">—</span></td>
+              <td class="model-cell">
+                <span class="model-name">{m.name}</span>
+                {m.free && <span class="free-badge">FREE</span>}
+              </td>
+              <td class="provider-cell">{m.provider}</td>
+              <td class="score-cell"><span class="pending-label">미측정</span></td>
+              <td class="score-cell"><span class="no-data">—</span></td>
+              <td class="score-cell"><span class="no-data">—</span></td>
+              <td class="cost-cell">
+                {m.cost_per_run_usd === 0
+                  ? <span class="free-text">$0</span>
+                  : <span>${m.cost_per_run_usd.toFixed(2)}</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {ranked.length > 0 && (
+    <section class="chart-section">
+      <h2>PinchBench 점수 분포</h2>
+      <div class="chart-container">
+        <div id="pb-chart" style="width:100%;height:370px;"></div>
+      </div>
+    </section>
+  )}
+</Layout>
+
+<style>
+  .sample-notice {
+    margin-top: 8px; font-size: 0.8rem;
+    color: var(--amber); opacity: 0.65; font-style: italic;
+  }
+</style>
+
+<script is:inline define:vars={{ chartLabels, chartScores }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    /* ── ECharts Bar ── */
+    var dom = document.getElementById('pb-chart');
+    if (dom && typeof echarts !== 'undefined') {
+      var labels = JSON.parse(chartLabels);
+      var scores = JSON.parse(chartScores);
+
+      var chart = echarts.init(dom);
+      var rankColors = [
+        { top: '#ffd048', bottom: '#c68a00' },
+        { top: '#b8c8d8', bottom: '#6a7a8a' },
+        { top: '#e8a050', bottom: '#8a5520' },
+      ];
+      var defaultColor = { top: '#00e8c4', bottom: '#006858' };
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        grid: { top: 35, right: 24, bottom: 55, left: 52, containLabel: false },
+        xAxis: {
+          type: 'category',
+          data: labels,
+          axisLabel: {
+            color: '#8794b5', fontSize: 11,
+            fontFamily: 'Noto Sans KR',
+            rotate: labels.length > 5 ? 15 : 0,
+          },
+          axisLine: { lineStyle: { color: 'rgba(40,60,110,0.3)' } },
+          axisTick: { show: false },
+        },
+        yAxis: {
+          type: 'value', max: 100, min: 0,
+          splitNumber: 5,
+          axisLabel: { color: '#4c5a7a', fontSize: 11, fontFamily: 'JetBrains Mono' },
+          splitLine: { lineStyle: { color: 'rgba(40,60,110,0.2)', type: 'dashed' } },
+          axisLine: { show: false },
+          axisTick: { show: false },
+        },
+        series: [{
+          type: 'bar',
+          data: scores.map(function(s, i) {
+            var c = i < 3 ? rankColors[i] : defaultColor;
+            return {
+              value: s,
+              itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: c.top },
+                  { offset: 1, color: c.bottom },
+                ]),
+                borderRadius: [8, 8, 2, 2],
+                shadowColor: c.top,
+                shadowBlur: 12,
+                shadowOffsetY: 4,
+              },
+              emphasis: {
+                itemStyle: {
+                  shadowBlur: 24,
+                  shadowColor: c.top,
+                }
+              }
+            };
+          }),
+          barWidth: '48%',
+          animationDelay: function(idx) { return idx * 120; },
+          animationEasing: 'elasticOut',
+          animationDuration: 1200,
+          label: {
+            show: true, position: 'top',
+            color: '#8794b5', fontSize: 12,
+            fontFamily: 'JetBrains Mono', fontWeight: 600,
+            formatter: function(p) { return p.value.toFixed(1); },
+          },
+        }],
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: 'rgba(10,15,30,0.92)',
+          borderColor: 'rgba(40,60,110,0.4)',
+          borderWidth: 1,
+          textStyle: { color: '#e8ecf6', fontFamily: 'Noto Sans KR', fontSize: 13 },
+          axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,232,196,0.04)' } },
+          formatter: function(params) {
+            var p = params[0];
+            return '<b>' + p.name + '</b><br/><span style="font-family:JetBrains Mono;color:#00e8c4;font-size:15px;font-weight:700">' + p.value.toFixed(1) + '</span><span style="color:#4c5a7a"> / 100</span>';
+          }
+        },
+      });
+
+      window.addEventListener('resize', function() { chart.resize(); });
+    }
+
+    /* ── Table Sorting ── */
+    var table = document.getElementById('lb-table');
+    if (!table) return;
+    var headers = table.querySelectorAll('th[data-col]');
+    var sortCol = 'rank', sortAsc = true;
+
+    headers.forEach(function(th) {
+      th.addEventListener('click', function() {
+        var col = th.dataset.col;
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = col === 'name' || col === 'provider'; }
+
+        headers.forEach(function(h) { h.classList.remove('sorted'); var a = h.querySelector('.sort-arrow'); if(a) a.remove(); });
+        th.classList.add('sorted');
+        var arrow = document.createElement('span');
+        arrow.className = 'sort-arrow';
+        arrow.textContent = sortAsc ? ' \u25B2' : ' \u25BC';
+        th.appendChild(arrow);
+
+        var tbody = table.querySelector('tbody');
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort(function(a, b) {
+          var va, vb;
+          if (col === 'name') { va = a.querySelector('.model-name').textContent; vb = b.querySelector('.model-name').textContent; }
+          else if (col === 'provider') { va = a.querySelector('.provider-cell').textContent; vb = b.querySelector('.provider-cell').textContent; }
+          else if (col === 'rank') { va = +a.dataset.rank; vb = +b.dataset.rank; }
+          else if (col === 'pinch') { va = a.dataset.pinch ? +a.dataset.pinch : -1; vb = b.dataset.pinch ? +b.dataset.pinch : -1; }
+          else if (col === 'agent') { va = a.dataset.agent ? +a.dataset.agent : -1; vb = b.dataset.agent ? +b.dataset.agent : -1; }
+          else if (col === 'korean') { va = a.dataset.korean ? +a.dataset.korean : -1; vb = b.dataset.korean ? +b.dataset.korean : -1; }
+          else if (col === 'cost') { va = +a.dataset.cost || 999; vb = +b.dataset.cost || 999; }
+          if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+          return sortAsc ? va - vb : vb - va;
+        });
+        rows.forEach(function(r) { tbody.appendChild(r); });
+      });
+    });
+  });
+</script>

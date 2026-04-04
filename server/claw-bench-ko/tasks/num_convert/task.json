@@ -1,0 +1,34 @@
+{
+  "id": "num_convert",
+  "name": "한글 숫자 변환",
+  "category": "data_processing",
+  "grading_type": "automated",
+  "timeout_seconds": 120,
+  "prompt": "workspace에 있는 numbers.txt 파일을 읽으세요. 한국어 숫자 표현 15개가 한 줄에 하나씩 적혀 있습니다.\n\n각 표현을 정수(integer)로 변환하세요. 한글 숫자(삼천이백만), 혼합 표기(1억 5천만), 단위만 있는 표기(3만 5천) 모두 처리해야 합니다.\n\n결과를 workspace에 result.json 파일로 저장하세요. JSON 배열 형식이며, 각 요소는 {\"original\": \"원본 문자열\", \"value\": 정수값} 객체입니다.",
+  "workspace_files": ["numbers.txt"],
+  "grading": {
+    "automated": {
+      "output_file": "result.json",
+      "checks": [
+        {"type": "file_exists", "path": "result.json"},
+        {"type": "json_valid", "path": "result.json"},
+        {"type": "json_array_length", "path": "result.json", "expected": 15},
+        {"type": "json_field_equals", "path": "result.json", "field": "[0].value", "expected": 32000000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[1].value", "expected": 150000000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[2].value", "expected": 532},
+        {"type": "json_field_equals", "path": "result.json", "field": "[3].value", "expected": 79},
+        {"type": "json_field_equals", "path": "result.json", "field": "[4].value", "expected": 300000000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[5].value", "expected": 1234567},
+        {"type": "json_field_equals", "path": "result.json", "field": "[6].value", "expected": 210000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[7].value", "expected": 35000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[8].value", "expected": 1000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[9].value", "expected": 2300000000000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[10].value", "expected": 123000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[11].value", "expected": 56780000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[12].value", "expected": 89000},
+        {"type": "json_field_equals", "path": "result.json", "field": "[13].value", "expected": 405},
+        {"type": "json_field_equals", "path": "result.json", "field": "[14].value", "expected": 2560000000000}
+      ]
+    }
+  }
+}

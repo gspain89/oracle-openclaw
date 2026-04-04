@@ -1,0 +1,181 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+let data = { meta: {}, models: [] };
+try {
+  const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'leaderboard.json'), 'utf-8');
+  data = JSON.parse(raw);
+} catch {}
+
+const models = data.models;
+const hasKorean = models.some(m => m.scores?.korean);
+
+// 태스크 카테고리 정의 (Phase 5에서 실제 데이터로 교체)
+const categories = [
+  {
+    id: 'lang',
+    name: '한국어 처리',
+    count: 5,
+    tasks: ['HWP 데이터 추출', '뉴스 요약', '법률 번역', '맞춤법 교정', '비즈니스 이메일'],
+  },
+  {
+    id: 'system',
+    name: '한국 시스템',
+    count: 5,
+    tasks: ['주소 파싱', '날짜 형식 변환', '금액 변환', '주민번호 검증', '전화번호 정규화'],
+  },
+  {
+    id: 'doc',
+    name: '한국 문서/도구',
+    count: 5,
+    tasks: ['HWP→Markdown', '은행 CSV 처리', '제안서 작성', '공공데이터 API', '한자 읽기'],
+  },
+];
+---
+
+<Layout title="한국어 벤치마크">
+  <div class="page-header">
+    <h1>한국어 <span class="accent">벤치마크</span></h1>
+    <p>한국어 처리 · 한국 시스템 · 한국 문서/도구 — 15개 태스크 커스텀 벤치마크</p>
+  </div>
+
+  {hasKorean ? (
+    <div class="card">
+      <h3>한국어 벤치마크 결과</h3>
+      <p>데이터 로딩 중...</p>
+    </div>
+  ) : (
+    <div class="card">
+      <div class="empty-state">
+        <div class="icon">ㄱ</div>
+        <h3>한국어 벤치마크 준비 중</h3>
+        <p>Phase 5에서 구현 예정입니다. 아래에서 태스크 설계를 확인하세요.</p>
+      </div>
+    </div>
+  )}
+
+  <div class="categories">
+    {categories.map(cat => (
+      <div class="cat-card card">
+        <div class="cat-header">
+          <h3>{cat.name}</h3>
+          <span class="cat-count">{cat.count}개 태스크</span>
+        </div>
+        <div class="task-list">
+          {cat.tasks.map((task, i) => (
+            <div class="task-item">
+              <span class="task-num">{String(i + 1).padStart(2, '0')}</span>
+              <span class="task-name">{task}</span>
+              <span class="task-status">대기</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div class="card scoring-info" style="margin-top:20px;">
+    <h3>채점 방식</h3>
+    <div class="scoring-grid">
+      <div class="scoring-item">
+        <div class="scoring-type">Structured</div>
+        <p>JSON 필드 정확도 비교 (주소, 번호, 금액 등 구조화된 출력)</p>
+      </div>
+      <div class="scoring-item">
+        <div class="scoring-type">Semantic</div>
+        <p>LLM 기반 판정 — GLM-4.5-Flash(무료)가 의미적 정확성 평가</p>
+      </div>
+      <div class="scoring-item">
+        <div class="scoring-type">Exact</div>
+        <p>정확 일치 — 변환, 정규화 태스크에서 기대값과 1:1 비교</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card unique-value" style="margin-top:20px;">
+    <h3>독자적 가치</h3>
+    <p>
+      PinchBench · AgentBench · WildClawBench 등 기존 벤치마크는 한국어 및 한국 시스템에 대한 coverage가
+      전혀 없습니다. 이 벤치마크는 한국어 HWP 문서 처리, 한국식 주소 파싱, 주민번호 형식, 만원/억원 금액 체계 등
+      <strong>한국 업무 환경에서 AI 에이전트가 실제로 마주하는 태스크</strong>를 평가합니다.
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .accent { color: var(--cyan); }
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+    animation: fade-up 0.5s var(--ease-out-expo) 0.1s backwards;
+  }
+  .cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .cat-count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-3);
+    padding: 3px 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+  .task-list { display: flex; flex-direction: column; gap: 6px; }
+  .task-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .task-item:hover { border-color: var(--border); }
+  .task-num {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-3);
+  }
+  .task-name { font-size: 0.85rem; color: var(--text); }
+  .task-status {
+    font-size: 0.7rem;
+    color: var(--text-3);
+    padding: 2px 6px;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+  }
+  .scoring-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .scoring-item {
+    padding: 14px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .scoring-type {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--cyan);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .scoring-item p { font-size: 0.85rem; color: var(--text-2); line-height: 1.5; }
+  .unique-value p { font-size: 0.9rem; color: var(--text-2); line-height: 1.7; }
+  .unique-value strong { color: var(--text); }
+</style>

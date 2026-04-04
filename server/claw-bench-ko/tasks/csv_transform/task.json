@@ -1,0 +1,31 @@
+{
+  "id": "csv_transform",
+  "name": "은행 거래 CSV 변환",
+  "category": "data_processing",
+  "grading_type": "hybrid",
+  "timeout_seconds": 180,
+  "prompt": "workspace에 있는 transactions.csv 파일은 한국 은행 거래 내역입니다. 이 파일은 EUC-KR 인코딩으로 되어 있어 UTF-8로 직접 읽으면 깨질 수 있습니다.\n\n다음 변환을 수행하세요:\n1. 인코딩을 EUC-KR에서 UTF-8로 변환\n2. 날짜 컬럼(거래일자)을 ISO 8601 형식(YYYY-MM-DD)으로 통일\n3. 금액 컬럼(입금, 출금, 잔액)에서 쉼표와 '원' 문자를 제거하여 정수로 변환\n4. '유형' 컬럼을 추가: 입금 > 0이면 '입금', 출금 > 0이면 '출금'\n5. 거래일자 기준 오름차순 정렬\n\n결과를 workspace에 result.csv 파일로 저장하세요. UTF-8 인코딩, 첫 행은 헤더(거래일자,적요,입금,출금,잔액,유형)여야 합니다.",
+  "workspace_files": ["transactions.csv"],
+  "encoding_setup": {
+    "transactions.csv": "euc-kr"
+  },
+  "grading": {
+    "automated": {
+      "output_file": "result.csv",
+      "checks": [
+        {"type": "file_exists", "path": "result.csv"},
+        {"type": "encoding_is", "path": "result.csv", "expected": "utf-8"},
+        {"type": "csv_header_equals", "path": "result.csv", "expected": "거래일자,적요,입금,출금,잔액,유형"},
+        {"type": "csv_row_count", "path": "result.csv", "expected": 15},
+        {"type": "csv_field_matches_pattern", "path": "result.csv", "column": "거래일자", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        {"type": "csv_field_is_integer", "path": "result.csv", "column": "입금"},
+        {"type": "csv_field_is_integer", "path": "result.csv", "column": "출금"}
+      ],
+      "weight": 0.5
+    },
+    "judge": {
+      "rubric": "이 태스크는 EUC-KR 인코딩 CSV를 UTF-8로 변환하고 데이터를 정규화하는 작업입니다.\n\n채점 기준 (100점 만점):\n- 인코딩 변환 정확성 (25점): EUC-KR→UTF-8 변환 시 한글 깨짐 없이 모든 문자 보존\n- 날짜 형식 통일 (25점): 원본의 다양한 날짜 형식(2024.03.15, 24/03/15, 2024년 3월 15일 등)을 모두 YYYY-MM-DD로 정확히 변환\n- 금액 처리 (25점): '1,500,000원'→1500000, 빈 칸→0, 음수 표기 처리 등 엣지 케이스 포함\n- 유형 분류 및 정렬 (25점): 입금/출금 분류 정확, 날짜 오름차순 정렬 정확",
+      "weight": 0.5
+    }
+  }
+}

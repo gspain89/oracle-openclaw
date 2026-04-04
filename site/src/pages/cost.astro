@@ -1,0 +1,204 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+let data = { meta: {}, models: [] };
+try {
+  const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'leaderboard.json'), 'utf-8');
+  data = JSON.parse(raw);
+} catch {}
+
+const models = data.models;
+const scored = models.filter(m => m.scores?.pinchbench);
+
+const scatterPoints = scored.map(m => ({
+  name: m.name,
+  value: [m.cost_per_run_usd, m.scores.pinchbench.score],
+  free: m.free,
+}));
+const scatterJson = JSON.stringify(scatterPoints);
+
+const efficiency = scored
+  .map(m => ({
+    name: m.name,
+    score: m.scores.pinchbench.score,
+    cost: m.cost_per_run_usd,
+    efficiency: m.cost_per_run_usd === 0
+      ? Infinity
+      : m.scores.pinchbench.score / m.cost_per_run_usd,
+    free: m.free,
+  }))
+  .sort((a, b) => b.efficiency - a.efficiency);
+---
+
+<Layout title="비용 효율">
+  <div class="page-header">
+    <h1>비용 <span class="accent">효율</span> 분석</h1>
+    <p>성능 대비 비용이 가장 효율적인 모델 순위</p>
+  </div>
+
+  <div class="cost-grid">
+    <div class="card chart-card">
+      <h3>성능 vs 비용</h3>
+      <p class="chart-desc">X축: 실행 비용(USD/회), Y축: PinchBench 점수. 좌상단이 최적</p>
+      <div class="chart-container" style="min-height:360px;">
+        <div id="scatter-chart" style="width:100%;height:360px;"></div>
+      </div>
+    </div>
+
+    <div class="card efficiency-card">
+      <h3>비용 효율 순위</h3>
+      <div class="eff-list">
+        {efficiency.map((m, i) => (
+          <div class="eff-row">
+            <span class="eff-rank">{i + 1}</span>
+            <div class="eff-info">
+              <span class="eff-name">
+                {m.name}
+                {m.free && <span class="free-badge">FREE</span>}
+              </span>
+              <span class="eff-detail">
+                {m.cost === 0
+                  ? `${m.score.toFixed(1)}점 · 무료`
+                  : `${m.score.toFixed(1)}점 · $${m.cost.toFixed(2)}/회 · ${m.efficiency.toFixed(0)}점/$`}
+              </span>
+            </div>
+            <div class="eff-bar-track">
+              <div
+                class="eff-bar-fill"
+                style={`width:${m.efficiency === Infinity ? 100 : Math.min((m.efficiency / (efficiency[0].efficiency === Infinity ? efficiency.find(e => e.efficiency !== Infinity)?.efficiency || 1 : efficiency[0].efficiency)) * 100, 100)}%`}
+              ></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .cost-grid {
+    display: grid; grid-template-columns: 1.2fr 0.8fr;
+    gap: 20px;
+    animation: fade-up 0.5s var(--ease-out-expo) backwards;
+  }
+  @media (max-width: 768px) { .cost-grid { grid-template-columns: 1fr; } }
+  .chart-card .chart-container { margin-top: 12px; padding: 0; border: none; background: transparent; backdrop-filter: none; }
+  .chart-desc { font-size: 0.8rem; color: var(--text-3); margin-top: 4px; }
+  .eff-list { display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
+  .eff-row {
+    display: grid; grid-template-columns: 28px 1fr 110px;
+    align-items: center; gap: 12px;
+  }
+  .eff-rank {
+    font-family: var(--font-mono); font-weight: 700;
+    font-size: 0.85rem; color: var(--text-3); text-align: center;
+  }
+  .eff-info { display: flex; flex-direction: column; gap: 3px; }
+  .eff-name { font-size: 0.9rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .eff-detail { font-size: 0.73rem; color: var(--text-2); font-family: var(--font-mono); }
+  .eff-bar-track {
+    height: 7px; background: rgba(10,15,30,0.5);
+    border-radius: 4px; overflow: hidden;
+    border: 1px solid rgba(40,60,110,0.15);
+  }
+  .eff-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--green));
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0,232,196,0.2);
+    transition: width 0.8s var(--ease-out-expo);
+  }
+</style>
+
+<script is:inline define:vars={{ scatterJson }}>
+  document.addEventListener('DOMContentLoaded', function() {
+    var points = JSON.parse(scatterJson);
+    var dom = document.getElementById('scatter-chart');
+    if (!dom || !points.length) return;
+
+    var chart = echarts.init(dom);
+    chart.setOption({
+      backgroundColor: 'transparent',
+      grid: { top: 20, right: 28, bottom: 52, left: 56, containLabel: false },
+      xAxis: {
+        name: '비용 (USD/회)',
+        nameLocation: 'center', nameGap: 34,
+        nameTextStyle: { color: '#8794b5', fontFamily: 'Noto Sans KR', fontSize: 12 },
+        type: 'value',
+        axisLabel: { color: '#4c5a7a', fontFamily: 'JetBrains Mono', fontSize: 11, formatter: '${value}' },
+        splitLine: { lineStyle: { color: 'rgba(40,60,110,0.15)', type: 'dashed' } },
+        axisLine: { lineStyle: { color: 'rgba(40,60,110,0.3)' } },
+        axisTick: { show: false },
+      },
+      yAxis: {
+        name: 'PinchBench 점수',
+        nameLocation: 'center', nameGap: 40,
+        nameTextStyle: { color: '#8794b5', fontFamily: 'Noto Sans KR', fontSize: 12 },
+        type: 'value', min: 0, max: 100,
+        axisLabel: { color: '#4c5a7a', fontFamily: 'JetBrains Mono', fontSize: 11 },
+        splitLine: { lineStyle: { color: 'rgba(40,60,110,0.15)', type: 'dashed' } },
+        axisLine: { show: false },
+        axisTick: { show: false },
+      },
+      series: [{
+        type: 'scatter',
+        data: points,
+        symbolSize: function(val, params) {
+          return Math.max(16, val[1] / 100 * 28);
+        },
+        itemStyle: {
+          color: function(params) {
+            return params.data.free
+              ? new echarts.graphic.RadialGradient(0.5, 0.5, 0.8, [
+                  { offset: 0, color: 'rgba(52,211,153,0.95)' },
+                  { offset: 1, color: 'rgba(0,232,196,0.4)' },
+                ])
+              : new echarts.graphic.RadialGradient(0.5, 0.5, 0.8, [
+                  { offset: 0, color: 'rgba(255,208,72,0.95)' },
+                  { offset: 1, color: 'rgba(255,160,30,0.4)' },
+                ]);
+          },
+          shadowColor: function(params) {
+            return params.data.free ? 'rgba(52,211,153,0.4)' : 'rgba(255,190,46,0.35)';
+          },
+          shadowBlur: 14,
+          borderColor: 'rgba(4,7,18,0.5)',
+          borderWidth: 1.5,
+        },
+        emphasis: {
+          itemStyle: { shadowBlur: 24, borderWidth: 0 },
+          label: { show: true },
+        },
+        label: {
+          show: false,
+          formatter: function(p) { return p.data.name; },
+          color: '#e8ecf6', fontSize: 11, fontFamily: 'Noto Sans KR',
+          position: 'top', distance: 8,
+        },
+        animationDelay: function(idx) { return idx * 150; },
+        animationDuration: 1000,
+        animationEasing: 'elasticOut',
+      }],
+      tooltip: {
+        backgroundColor: 'rgba(10,15,30,0.92)',
+        borderColor: 'rgba(40,60,110,0.4)', borderWidth: 1,
+        textStyle: { color: '#e8ecf6', fontFamily: 'Noto Sans KR', fontSize: 13 },
+        formatter: function(p) {
+          var d = p.data;
+          return '<b>' + d.name + '</b>' + (d.free ? ' <span style="color:#34d399;font-size:11px">FREE</span>' : '') +
+            '<br/>점수: <span style="font-family:JetBrains Mono;color:#00e8c4;font-weight:700">' + d.value[1].toFixed(1) + '</span>' +
+            '<br/>비용: <span style="font-family:JetBrains Mono">$' + d.value[0].toFixed(2) + '/회</span>';
+        }
+      },
+    });
+
+    /* label 항상 표시 */
+    chart.setOption({
+      series: [{ label: { show: true } }]
+    });
+
+    window.addEventListener('resize', function() { chart.resize(); });
+  });
+</script>

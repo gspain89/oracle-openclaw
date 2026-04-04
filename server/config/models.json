@@ -1,0 +1,54 @@
+{
+  "models": [
+    {
+      "id": "qwen3.5-27b",
+      "provider": "dashscope",
+      "name": "Qwen 3.5 27B",
+      "free": false,
+      "input_price_per_1m": 1.10,
+      "output_price_per_1m": 4.40,
+      "context_window_tokens": 131072,
+      "notes": "DashScope 무료 크레딧 1M tokens 사용 가능. PinchBench 4위"
+    },
+    {
+      "id": "qwen3.5-plus",
+      "provider": "dashscope",
+      "name": "Qwen 3.5 Plus",
+      "free": false,
+      "input_price_per_1m": 0.80,
+      "output_price_per_1m": 2.00,
+      "context_window_tokens": 131072,
+      "notes": "DashScope. Plus 변형 — 응답 속도 빠름"
+    },
+    {
+      "id": "glm-5",
+      "provider": "dashscope",
+      "name": "GLM-5 (Zhipu)",
+      "free": false,
+      "input_price_per_1m": 3.00,
+      "output_price_per_1m": 12.00,
+      "context_window_tokens": 131072,
+      "notes": "Z.AI $9 크레딧 사용. PinchBench 점수 미측정 — 세계 최초 측정 목표"
+    },
+    {
+      "id": "glm-5.1",
+      "provider": "dashscope",
+      "name": "GLM-5.1 (Zhipu)",
+      "free": false,
+      "input_price_per_1m": 3.00,
+      "output_price_per_1m": 12.00,
+      "context_window_tokens": 131072,
+      "notes": "GLM-5 후속. Z.AI 크레딧 사용"
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "provider": "openrouter",
+      "name": "Nemotron 3 Super 120B",
+      "free": true,
+      "input_price_per_1m": 0,
+      "output_price_per_1m": 0,
+      "context_window_tokens": 131072,
+      "notes": "PinchBench 97.7% (automated-only). OpenRouter :free 모델 중 최고 성적"
+    }
+  ]
+}

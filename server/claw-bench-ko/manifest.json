@@ -1,0 +1,86 @@
+{
+  "id": "claw-bench-ko",
+  "name": "ClawBench-KO",
+  "version": "1.0.0",
+  "description": "한국어 에이전트 능력 벤치마크 — OpenClaw 에이전트의 한국어 데이터 처리, 문서 생성, 한국 시스템 이해도를 측정",
+  "task_count": 10,
+  "grading_types": {
+    "automated": 4,
+    "llm_judge": 3,
+    "hybrid": 3
+  },
+  "default_judge_model": "azure-openai/gpt-5.2-chat",
+  "default_timeout_seconds": 180,
+  "tasks": [
+    {
+      "id": "addr_parse",
+      "name": "한국 주소 파싱",
+      "category": "data_processing",
+      "grading_type": "automated",
+      "difficulty": "medium"
+    },
+    {
+      "id": "num_convert",
+      "name": "한글 숫자 변환",
+      "category": "data_processing",
+      "grading_type": "automated",
+      "difficulty": "medium"
+    },
+    {
+      "id": "phone_normalize",
+      "name": "전화번호 정규화",
+      "category": "data_processing",
+      "grading_type": "automated",
+      "difficulty": "easy"
+    },
+    {
+      "id": "csv_transform",
+      "name": "은행 거래 CSV 변환",
+      "category": "data_processing",
+      "grading_type": "hybrid",
+      "difficulty": "hard"
+    },
+    {
+      "id": "meeting_minutes",
+      "name": "회의록 작성",
+      "category": "document_generation",
+      "grading_type": "llm_judge",
+      "difficulty": "medium"
+    },
+    {
+      "id": "biz_email",
+      "name": "비즈니스 이메일 작성",
+      "category": "document_generation",
+      "grading_type": "llm_judge",
+      "difficulty": "medium"
+    },
+    {
+      "id": "news_summary",
+      "name": "뉴스 브리핑 요약",
+      "category": "document_generation",
+      "grading_type": "llm_judge",
+      "difficulty": "medium"
+    },
+    {
+      "id": "invoice_gen",
+      "name": "세금계산서 생성",
+      "category": "korean_system",
+      "grading_type": "hybrid",
+      "difficulty": "hard"
+    },
+    {
+      "id": "resume_parse",
+      "name": "이력서 파싱",
+      "category": "korean_system",
+      "grading_type": "hybrid",
+      "difficulty": "medium"
+    },
+    {
+      "id": "regulation_extract",
+      "name": "법규 요구사항 추출",
+      "category": "korean_system",
+      "grading_type": "hybrid",
+      "difficulty": "hard"
+    }
+  ]
+}

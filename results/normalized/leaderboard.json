@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "last_updated": "2026-04-03T13:23:46Z",
+    "total_runs": 0,
+    "generated_at": "2026-04-03T13:23:46Z",
+    "note": "샘플 데이터 — 벤치마크 실행 전 UI 프리뷰용. 실제 측정값이 아님"
+  },
+  "models": [
+    {
+      "id": "arcee-ai/trinity-large-preview:free",
+      "name": "Arcee Trinity Large Preview",
+      "provider": "openrouter",
+      "free": true,
+      "cost_per_run_usd": 0.0,
+      "scores": {
+        "pinchbench": { "score": 61.3, "completed": 14, "total": 23 },
+        "agentbench": { "score": 55.8, "task_completion": 58.2, "tool_accuracy": 52.1, "efficiency": 49.7, "quality": 63.2 },
+        "korean": null
+      }
+    },
+    {
+      "id": "qwen/qwen3-coder:free",
+      "name": "Qwen3 Coder",
+      "provider": "openrouter",
+      "free": true,
+      "cost_per_run_usd": 0.0,
+      "scores": {
+        "pinchbench": { "score": 72.6, "completed": 17, "total": 23 },
+        "agentbench": { "score": 68.4, "task_completion": 71.5, "tool_accuracy": 65.3, "efficiency": 62.8, "quality": 74.0 },
+        "korean": null
+      }
+    },
+    {
+      "id": "qwen3.5-27b",
+      "name": "Qwen 3.5 27B",
+      "provider": "dashscope",
+      "free": false,
+      "cost_per_run_usd": 0.35,
+      "scores": {
+        "pinchbench": { "score": 78.2, "completed": 18, "total": 23 },
+        "agentbench": { "score": 74.1, "task_completion": 76.8, "tool_accuracy": 71.4, "efficiency": 70.2, "quality": 78.0 },
+        "korean": null
+      }
+    },
+    {
+      "id": "qwen3.5-plus",
+      "name": "Qwen 3.5 Plus",
+      "provider": "dashscope",
+      "free": false,
+      "cost_per_run_usd": 0.17,
+      "scores": {
+        "pinchbench": { "score": 75.9, "completed": 17, "total": 23 },
+        "agentbench": { "score": 71.2, "task_completion": 73.6, "tool_accuracy": 69.8, "efficiency": 67.1, "quality": 74.3 },
+        "korean": null
+      }
+    },
+    {
+      "id": "glm-5",
+      "name": "GLM-5 (Zhipu)",
+      "provider": "dashscope",
+      "free": false,
+      "cost_per_run_usd": 0.97,
+      "scores": {
+        "pinchbench": { "score": 82.7, "completed": 19, "total": 23 },
+        "agentbench": { "score": 79.3, "task_completion": 82.1, "tool_accuracy": 77.5, "efficiency": 74.8, "quality": 82.8 },
+        "korean": null
+      }
+    },
+    {
+      "id": "glm-5.1",
+      "name": "GLM-5.1 (Zhipu)",
+      "provider": "dashscope",
+      "free": false,
+      "cost_per_run_usd": 0.97,
+      "scores": {
+        "pinchbench": { "score": 85.4, "completed": 20, "total": 23 },
+        "agentbench": { "score": 82.6, "task_completion": 85.3, "tool_accuracy": 80.1, "efficiency": 78.4, "quality": 86.6 },
+        "korean": null
+      }
+    },
+    {
+      "id": "nvidia/nemotron-3-super:free",
+      "name": "Nemotron 3 Super",
+      "provider": "openrouter",
+      "free": true,
+      "cost_per_run_usd": 0.0,
+      "scores": {
+        "pinchbench": { "score": 58.1, "completed": 13, "total": 23 },
+        "agentbench": { "score": 51.2, "task_completion": 54.6, "tool_accuracy": 48.3, "efficiency": 45.9, "quality": 56.0 },
+        "korean": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "invoice_gen",
+  "name": "세금계산서 생성",
+  "category": "korean_system",
+  "grading_type": "hybrid",
+  "timeout_seconds": 180,
+  "prompt": "workspace에 있는 order.json 파일을 읽으세요. 주문 데이터가 JSON 형식으로 들어 있습니다.\n\n이 데이터를 바탕으로 한국 세금계산서(전자세금계산서) 형식의 JSON을 생성하세요.\n\n세금계산서 필수 항목:\n- 공급자 정보: 사업자등록번호, 상호, 대표자, 업태, 종목, 주소\n- 공급받는자 정보: 사업자등록번호, 상호, 대표자, 업태, 종목, 주소\n- 작성일자\n- 품목 목록: 각 품목의 품명, 규격, 수량, 단가, 공급가액, 세액\n- 합계: 총 공급가액, 총 세액(부가가치세 10%), 총 합계금액\n\n계산 규칙:\n- 공급가액 = 수량 × 단가\n- 세액 = 공급가액 × 0.1 (원 단위 절사)\n- 합계금액 = 총 공급가액 + 총 세액\n\n결과를 workspace에 invoice.json 파일로 저장하세요.",
+  "workspace_files": ["order.json"],
+  "grading": {
+    "automated": {
+      "output_file": "invoice.json",
+      "checks": [
+        {"type": "file_exists", "path": "invoice.json"},
+        {"type": "json_valid", "path": "invoice.json"},
+        {"type": "json_field_exists", "path": "invoice.json", "field": "supplier"},
+        {"type": "json_field_exists", "path": "invoice.json", "field": "buyer"},
+        {"type": "json_field_exists", "path": "invoice.json", "field": "items"},
+        {"type": "json_field_exists", "path": "invoice.json", "field": "total"},
+        {"type": "json_field_equals", "path": "invoice.json", "field": "total.supply_amount", "expected": 7900000},
+        {"type": "json_field_equals", "path": "invoice.json", "field": "total.tax_amount", "expected": 790000},
+        {"type": "json_field_equals", "path": "invoice.json", "field": "total.total_amount", "expected": 8690000}
+      ],
+      "weight": 0.5
+    },
+    "judge": {
+      "rubric": "이 태스크는 주문 데이터로부터 한국 세금계산서 형식 JSON을 생성하는 작업입니다.\n\n채점 기준 (100점 만점):\n\n계산 정확성 (40점):\n- 각 품목별 공급가액 = 수량 × 단가 정확한지\n- 세액 = 공급가액 × 10% (원 단위 절사) 정확한지\n- 합계 계산이 정확한지\n\n세금계산서 형식 준수 (30점):\n- 한국 세금계산서 필수 항목이 모두 포함되었는지\n- 사업자등록번호 형식(XXX-XX-XXXXX)이 올바른지\n- 품목 정보가 완전한지 (품명, 규격, 수량, 단가, 공급가액, 세액)\n- JSON 키 이름이 한국 세금계산서 용어에 적합한지\n\n데이터 정합성 (30점):\n- order.json의 공급자/공급받는자 정보가 정확히 반영되었는지\n- 품목 데이터 누락 없이 모두 포함되었는지\n- 작성일자가 적절한 형식인지",
+      "weight": 0.5
+    }
+  }
+}

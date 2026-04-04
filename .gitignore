@@ -1,0 +1,28 @@
+# SSH keys - never commit
+key/
+*.key
+*.pem
+
+# Environment secrets
+.env
+.env.*
+
+# Node
+node_modules/
+
+# Astro build output
+site/dist/
+site/.astro/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Benchmark raw output (large, regenerable)
+results/raw/
+
+# claw-bench-ko runtime output
+server/claw-bench-ko/results/

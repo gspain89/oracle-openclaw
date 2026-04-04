@@ -1,0 +1,29 @@
+{
+  "id": "addr_parse",
+  "name": "한국 주소 파싱",
+  "category": "data_processing",
+  "grading_type": "automated",
+  "timeout_seconds": 120,
+  "prompt": "workspace에 있는 addresses.txt 파일을 읽으세요. 한국 주소 20개가 한 줄에 하나씩 적혀 있습니다.\n\n각 주소를 파싱하여 아래 필드로 구조화하세요:\n- original: 원본 주소 문자열 (앞뒤 공백 제거)\n- sido: 시/도 (정식 명칭으로 통일. \"서울시\"→\"서울특별시\", \"경기\"→\"경기도\", \"부산\"→\"부산광역시\" 등)\n- sigungu: 시/군/구\n- road_or_dong: 도로명+번호 또는 동/읍/면+번지\n- detail: 건물명, 동/호수, 층수 등 나머지 상세주소 (없으면 빈 문자열)\n\n결과를 workspace에 result.json 파일로 저장하세요. JSON 배열 형식이며, 각 요소는 위 5개 필드를 포함하는 객체입니다.",
+  "workspace_files": ["addresses.txt"],
+  "grading": {
+    "automated": {
+      "output_file": "result.json",
+      "checks": [
+        {"type": "file_exists", "path": "result.json"},
+        {"type": "json_valid", "path": "result.json"},
+        {"type": "json_array_length", "path": "result.json", "expected": 20},
+        {"type": "json_field_equals", "path": "result.json", "field": "[0].sido", "expected": "서울특별시"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[1].sido", "expected": "경기도"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[2].sido", "expected": "부산광역시"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[3].sido", "expected": "서울특별시"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[4].sido", "expected": "대전광역시"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[7].sido", "expected": "제주특별자치도"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[12].sido", "expected": "세종특별자치시"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[1].sigungu", "expected": "성남시 분당구"},
+        {"type": "json_field_equals", "path": "result.json", "field": "[5].sigungu", "expected": "연수구"},
+        {"type": "json_has_fields", "path": "result.json", "fields": ["original", "sido", "sigungu", "road_or_dong", "detail"]}
+      ]
+    }
+  }
+}
