@@ -16,6 +16,7 @@
 """
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -55,7 +56,7 @@ def create_agent(agent_id: str, model: str, workspace: Path):
     )
     if agent_id in result.stdout:
         subprocess.run(
-            ["openclaw", "agents", "delete", agent_id, "--yes"],
+            ["openclaw", "agents", "delete", agent_id, "--force"],
             capture_output=True, text=True, timeout=30
         )
         print(f"  기존 에이전트 삭제: {agent_id}")
@@ -77,7 +78,7 @@ def create_agent(agent_id: str, model: str, workspace: Path):
 def delete_agent(agent_id: str):
     """에이전트 삭제 (세션/워크스페이스 정리)"""
     subprocess.run(
-        ["openclaw", "agents", "delete", agent_id, "--yes"],
+        ["openclaw", "agents", "delete", agent_id, "--force"],
         capture_output=True, text=True, timeout=30
     )
     print(f"  에이전트 삭제: {agent_id}")
@@ -287,8 +288,10 @@ def main():
             print(f"\n── {task['name']} ({task_id}) {run_label} ──")
 
             # 태스크마다 고유 에이전트 생성 (세션 격리)
+            # agent ID를 짧게 유지 (OpenClaw가 긴 ID를 절단함)
             run_id = uuid.uuid4().hex[:6]
-            agent_id = f"clawbench-{model_slug}-{task_id}-{run_i}"
+            model_hash = hashlib.md5(model_slug.encode()).hexdigest()[:6]
+            agent_id = f"cb-{model_hash}-{task_id}-{run_i}"
             workspace = Path(f"/tmp/claw-bench-ko/{run_id}/workspace")
             create_agent(agent_id, args.model, workspace)
 
