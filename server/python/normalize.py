@@ -261,9 +261,28 @@ def estimate_cost(info: dict, num_tasks: int = 23) -> float:
     return round((est_in / 1e6 * inp) + (est_out / 1e6 * out), 2)
 
 
+# ── 기존 leaderboard 로드 (증분 병합용) ──
+
+def load_existing_leaderboard(path: Path) -> dict:
+    """기존 leaderboard.json을 읽어서 model_id → entry dict로 반환"""
+    if not path.exists():
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return {m["id"]: m for m in data.get("models", [])}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 # ── 메인 빌드 ──
 
 def build_leaderboard(registry: dict, paths: dict) -> dict:
+    # 기존 leaderboard 로드 — raw 데이터가 없는 모델은 여기서 유지
+    existing = load_existing_leaderboard(paths["output"])
+    if existing:
+        print(f"기존 leaderboard: {len(existing)}개 모델 (증분 병합)")
+
     # 결과 파일 수집
     pb_files = collect_result_files(paths["raw_pb"])
     ko_files = collect_result_files(paths["raw_ko"])
@@ -319,15 +338,23 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
     # 리더보드 모델 엔트리 빌드
     models = []
     total_run_count = 0
-    latest_ts = None
+    models_from_raw = set()  # raw 데이터로 갱신된 모델 ID
 
     for model_id, info in registry.items():
         pb_list = pb_runs.get(model_id, [])
         ko_list = ko_runs.get(model_id, [])
 
-        # 결과가 하나도 없는 모델은 건너뜀
+        # raw 데이터가 없는 모델 → 기존 leaderboard 데이터 유지
         if not pb_list and not ko_list:
+            if model_id in existing:
+                models.append(existing[model_id])
+                # 기존 실행 횟수 합산
+                for bench in ("pinchbench", "clawbench_ko"):
+                    runs = existing[model_id].get("scores", {}).get(bench, {}).get("runs", [])
+                    total_run_count += len(runs)
             continue
+
+        models_from_raw.add(model_id)
 
         entry = {
             "id": model_id,
@@ -384,11 +411,17 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    if models_from_raw:
+        kept = [m["name"] for m in models if m["id"] not in models_from_raw]
+        if kept:
+            print(f"\n기존 데이터 유지: {', '.join(kept)}")
+
     return {
         "meta": {
             "last_updated": now,
             "total_runs": total_run_count,
             "generated_at": now,
+            "_new_from_raw": len(models_from_raw),
         },
         "models": models,
     }
@@ -414,9 +447,12 @@ def main():
     leaderboard = build_leaderboard(registry, paths)
 
     models = leaderboard["models"]
+    new_count = leaderboard["meta"].get("_new_from_raw", 0)
+    kept_count = len(models) - new_count
     pb_count = sum(1 for m in models if "pinchbench" in m["scores"])
     ko_count = sum(1 for m in models if "clawbench_ko" in m["scores"])
-    print(f"\nPinchBench: {pb_count}개 모델")
+    print(f"\n전체 모델: {len(models)}개 (raw에서 갱신: {new_count}, 기존 유지: {kept_count})")
+    print(f"PinchBench: {pb_count}개 모델")
     print(f"ClawBench-KO: {ko_count}개 모델")
     print(f"총 실행 횟수: {leaderboard['meta']['total_runs']}")
 
