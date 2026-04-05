@@ -416,3 +416,97 @@ tail -f /tmp/benchmark-all.log
 | **합계** | 34 | ~55분 | ~165분 |
 
 DashScope 모델 기준. OpenRouter free-tier는 2~3배 더 걸릴 수 있다.
+
+## 10. 전체 파이프라인 빠른 참조
+
+서버 접속부터 리더보드 배포까지 전체 흐름.
+
+### A. 기존 모델 벤치마크 실행 → 배포 (3단계)
+
+```bash
+# 1) 서버 접속
+ssh -i ~/Coding/oracle-openclaw/key/ssh-key-2026-04-03.key ubuntu@168.107.51.82
+
+# 2) 벤치마크 실행 (예: GLM-5.1을 3회)
+cd ~/oracle-openclaw
+source ~/.nvm/nvm.sh
+bash server/scripts/run-all.sh glm-5.1 --runs 3
+
+# 3) 결과 배포 → 사이트 자동 갱신
+bash server/scripts/deploy-results.sh
+```
+
+리더보드 확인: https://gspain89.github.io/oracle-openclaw/
+
+### B. 새 모델 추가 → 벤치마크 → 배포 (5단계)
+
+```bash
+# 1) 서버 접속
+ssh -i ~/Coding/oracle-openclaw/key/ssh-key-2026-04-03.key ubuntu@168.107.51.82
+
+# 2) OpenClaw에 모델 등록 (§3 참조)
+source ~/.nvm/nvm.sh
+# ... python3 스크립트로 openclaw.json에 모델 추가 ...
+
+# 3) models.json에 모델 메타데이터 추가
+cd ~/oracle-openclaw
+nano server/config/models.json
+# → models 배열에 새 항목 추가 (id, name, provider, free, 가격 등)
+
+# 4) 벤치마크 실행
+bash server/scripts/run-all.sh 새모델-id --runs 3
+
+# 5) 결과 배포
+bash server/scripts/deploy-results.sh
+```
+
+### C. 서버 코드 업데이트 (로컬에서 수정한 경우)
+
+```bash
+# 서버에서:
+cd ~/oracle-openclaw
+git pull origin main
+```
+
+### D. 파이프라인 흐름도
+
+```
+서버에서 bash run-all.sh <model> --runs N
+  │
+  ├── run-pinchbench.sh × N회 (순차)
+  │     └── results/raw/pinchbench/{model}_{timestamp}.json
+  │
+  ├── run-claw-bench-ko.sh × N회 (순차)
+  │     └── results/raw/korean/{model}_{timestamp}/results.json
+  │
+  └── normalize.py (자동 호출)
+        └── results/normalized/leaderboard.json 갱신
+
+서버에서 bash deploy-results.sh
+  │
+  ├── git add results/normalized/
+  ├── git commit + git push origin main
+  │
+  └── GitHub Actions 자동 트리거
+        ├── npm ci && npm run build (Astro)
+        └── GitHub Pages 배포
+              └── https://gspain89.github.io/oracle-openclaw/
+```
+
+### E. 주요 경로 정리
+
+| 항목 | 경로 |
+|------|------|
+| 벤치마크 스크립트 | `~/oracle-openclaw/server/scripts/` |
+| 모델 레지스트리 | `~/oracle-openclaw/server/config/models.json` |
+| PinchBench raw 결과 | `~/oracle-openclaw/results/raw/pinchbench/` |
+| ClawBench-KO raw 결과 | `~/oracle-openclaw/results/raw/korean/` |
+| 정규화된 리더보드 | `~/oracle-openclaw/results/normalized/leaderboard.json` |
+| normalize.py | `~/oracle-openclaw/server/python/normalize.py` |
+| ClawBench-KO runner | `~/oracle-openclaw/server/claw-bench-ko/runner.py` |
+| PinchBench 소스 | `~/pinchbench-skill/` |
+| OpenClaw 설정 | `~/.openclaw/openclaw.json` |
+| SSH deploy key | `~/.ssh/oracle-deploy-key` (GitHub push용) |
+| 사이트 소스 | `~/oracle-openclaw/site/` |
+| GitHub Actions | `.github/workflows/deploy-pages.yml` |
+| 라이브 사이트 | https://gspain89.github.io/oracle-openclaw/ |
