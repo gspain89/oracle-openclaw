@@ -5,7 +5,8 @@ interface Props {
 }
 
 const { title, description = 'AI 에이전트 모델 벤치마크 리더보드' } = Astro.props;
-const base = import.meta.env.BASE_URL;
+const rawBase = import.meta.env.BASE_URL;
+const base = rawBase.endsWith('/') ? rawBase : rawBase + '/';
 const path = Astro.url.pathname;
 
 const nav = [
@@ -19,7 +20,7 @@ const nav = [
 function isActive(page: string) {
   const normalized = path.replace(/\/$/, '');
   const target = (base + page).replace(/\/$/, '');
-  return normalized === target || normalized === target.replace(/\/$/, '');
+  return normalized === target;
 }
 ---
 
