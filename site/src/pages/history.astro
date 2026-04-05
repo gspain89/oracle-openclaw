@@ -3,138 +3,258 @@ import Layout from '../layouts/Layout.astro';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-let data = { meta: {}, models: [] };
+let data: any = { meta: {}, models: [] };
 try {
   const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'leaderboard.json'), 'utf-8');
   data = JSON.parse(raw);
 } catch {}
 
-// 히스토리 데이터가 아직 없으므로 현재 스냅샷을 단일 포인트로 표시
-const models = data.models.filter(m => m.scores?.pinchbench);
-const hasHistory = false; // results/normalized/history.json 생성 후 true로 전환
+const models = data.models;
+
+const pbRanked = [...models]
+  .filter((m: any) => m.scores?.pinchbench)
+  .sort((a: any, b: any) => b.scores.pinchbench.best - a.scores.pinchbench.best);
+
+const koRanked = [...models]
+  .filter((m: any) => m.scores?.clawbench_ko)
+  .sort((a: any, b: any) => b.scores.clawbench_ko.best - a.scores.clawbench_ko.best);
+
+const pbJson = JSON.stringify(pbRanked.map((m: any) => ({
+  name: m.name, provider: m.provider_label, free: m.free,
+  best: m.scores.pinchbench.best, avg: m.scores.pinchbench.average, std: m.scores.pinchbench.std,
+})));
+const koJson = JSON.stringify(koRanked.map((m: any) => ({
+  name: m.name, provider: m.provider_label, free: m.free,
+  best: m.scores.clawbench_ko.best, avg: m.scores.clawbench_ko.average, std: m.scores.clawbench_ko.std,
+})));
 ---
 
-<Layout title="히스토리">
+<Layout title="그래프">
   <div class="page-header">
-    <h1>성능 <span class="accent">히스토리</span></h1>
-    <p>벤치마크 점수 변화를 시간 순으로 추적</p>
+    <h1>Score <span class="accent">by Model</span></h1>
+    <p>모델별 Best / Average 점수 비교</p>
   </div>
 
-  {hasHistory ? (
-    <div class="card">
-      <h3>PinchBench 점수 추이</h3>
-      <div class="chart-container">
-        <canvas id="history-chart"></canvas>
+  <div class="card graph-card">
+    <div class="graph-header">
+      <div class="tab-bar">
+        <button class="tab active" id="tab-pb">PinchBench</button>
+        <button class="tab" id="tab-ko">ClawBench-KO</button>
+      </div>
+      <div class="graph-meta" id="graph-meta">
+        {pbRanked.length}개 모델 &middot; best score 순
       </div>
     </div>
-  ) : (
-    <div class="card">
-      <div class="empty-state">
-        <div class="icon">⏤</div>
-        <h3>아직 히스토리 데이터가 없습니다</h3>
-        <p>벤치마크가 2회 이상 실행되면 시계열 차트가 여기에 표시됩니다.</p>
-        <p class="hint">서버에서 <code>run-all.sh</code>를 실행하면 자동으로 히스토리가 기록됩니다.</p>
-      </div>
-    </div>
-  )}
 
-  {models.length > 0 && (
-    <div class="card snapshot" style="margin-top:20px;">
-      <h3>현재 스냅샷</h3>
-      <p class="snapshot-desc">최신 측정값 (단일 시점)</p>
-      <div class="snapshot-grid">
-        {models.map(m => (
-          <div class="snapshot-item">
-            <span class="snap-name">{m.name}</span>
-            <span class="snap-score">{m.scores.pinchbench.score.toFixed(1)}</span>
+    <div class="bar-legend">
+      <span class="legend-item"><span class="legend-dot best"></span> Best Score</span>
+      <span class="legend-item"><span class="legend-dot avg"></span> Average Score</span>
+    </div>
+
+    <div class="pb-bars" id="pb-bars">
+      {pbRanked.map((m: any, i: number) => (
+        <div class="hbar-row" style={`--delay: ${i * 0.05}s`}>
+          <div class="hbar-label">
+            <span class="hbar-name">{m.name}</span>
           </div>
-        ))}
-      </div>
+          <div class="hbar-tracks">
+            <div class="hbar-track">
+              <div class="hbar-fill best" style={`width:${m.scores.pinchbench.best}%`}>
+                <span class="hbar-val">{m.scores.pinchbench.best.toFixed(1)}%</span>
+              </div>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill avg" style={`width:${m.scores.pinchbench.average}%`}>
+                <span class="hbar-val">{m.scores.pinchbench.average.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+          <div class="hbar-scores">
+            <span class="hbar-score-best">{m.scores.pinchbench.best.toFixed(1)}%</span>
+            <span class="hbar-score-avg">{m.scores.pinchbench.average.toFixed(1)}%</span>
+          </div>
+        </div>
+      ))}
     </div>
-  )}
 
-  <div class="roadmap card" style="margin-top:20px;">
-    <h3>히스토리 시스템 로드맵</h3>
-    <div class="roadmap-list">
-      <div class="rm-item pending">
-        <span class="rm-dot"></span>
-        <div>
-          <strong>Phase 1</strong>: 벤치마크 자동화 완료 후 매 실행마다 <code>history.json</code>에 타임스탬프+점수 append
+    <div class="pb-bars" id="ko-bars" style="display:none;">
+      {koRanked.map((m: any, i: number) => (
+        <div class="hbar-row" style={`--delay: ${i * 0.05}s`}>
+          <div class="hbar-label">
+            <span class="hbar-name">{m.name}</span>
+          </div>
+          <div class="hbar-tracks">
+            <div class="hbar-track">
+              <div class="hbar-fill best" style={`width:${m.scores.clawbench_ko.best}%`}>
+                <span class="hbar-val">{m.scores.clawbench_ko.best.toFixed(1)}%</span>
+              </div>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill avg" style={`width:${m.scores.clawbench_ko.average}%`}>
+                <span class="hbar-val">{m.scores.clawbench_ko.average.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+          <div class="hbar-scores">
+            <span class="hbar-score-best">{m.scores.clawbench_ko.best.toFixed(1)}%</span>
+            <span class="hbar-score-avg">{m.scores.clawbench_ko.average.toFixed(1)}%</span>
+          </div>
         </div>
-      </div>
-      <div class="rm-item pending">
-        <span class="rm-dot"></span>
-        <div>
-          <strong>Phase 6</strong>: cron으로 주 1회 자동 실행 → 시계열 데이터 축적
-        </div>
-      </div>
-      <div class="rm-item pending">
-        <span class="rm-dot"></span>
-        <div>
-          <strong>시각화</strong>: Chart.js 라인 차트 — 모델별 토글, 날짜 범위 선택
-        </div>
-      </div>
+      ))}
+    </div>
+  </div>
+
+  <div class="card snapshot-card">
+    <h3>실행 상세 (3회 실행, std 포함)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>모델</th>
+            <th>PB Best</th>
+            <th>PB Avg</th>
+            <th>PB Std</th>
+            <th>KO Best</th>
+            <th>KO Avg</th>
+            <th>KO Std</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pbRanked.map((m: any, i: number) => (
+            <tr>
+              <td class="col-rank"><span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span></td>
+              <td><span class="model-name">{m.name}</span>{m.free && <span class="free-tag">FREE</span>}</td>
+              <td class="score-mono score-best">{m.scores.pinchbench.best.toFixed(1)}</td>
+              <td class="score-mono">{m.scores.pinchbench.average.toFixed(1)}</td>
+              <td class="score-mono std-val">&plusmn;{m.scores.pinchbench.std.toFixed(2)}</td>
+              <td class="score-mono">{m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : <span class="no-data">&mdash;</span>}</td>
+              <td class="score-mono">{m.scores.clawbench_ko ? m.scores.clawbench_ko.average.toFixed(1) : <span class="no-data">&mdash;</span>}</td>
+              <td class="score-mono std-val">{m.scores.clawbench_ko ? `\u00B1${m.scores.clawbench_ko.std.toFixed(2)}` : <span class="no-data">&mdash;</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   </div>
 </Layout>
 
 <style>
-  .accent { color: var(--cyan); }
-  .empty-state { padding: 48px 20px; }
-  .empty-state h3 { color: var(--text-2); margin-bottom: 8px; }
-  .empty-state p { color: var(--text-3); font-size: 0.9rem; }
-  .hint { margin-top: 8px; }
-  .hint code {
-    font-family: var(--font-mono);
-    font-size: 0.85em;
-    padding: 2px 6px;
-    background: var(--bg-elevated);
-    border-radius: 4px;
-    color: var(--cyan);
+  .graph-card { animation: fade-up 0.5s var(--ease-out-expo) backwards; }
+  .graph-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; flex-wrap: wrap; gap: 8px;
   }
-  .snapshot-desc { font-size: 0.8rem; color: var(--text-3); margin-top: 4px; }
-  .snapshot-grid {
+  .graph-meta {
+    font-family: var(--font-mono); font-size: 0.75rem;
+    color: var(--text-3);
+  }
+
+  /* Horizontal Bar Chart (PinchBench style) */
+  .hbar-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-    margin-top: 16px;
-  }
-  .snapshot-item {
-    display: flex;
-    justify-content: space-between;
+    grid-template-columns: 200px 1fr 80px;
+    gap: 16px;
     align-items: center;
-    padding: 10px 14px;
-    background: var(--bg-surface);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(120, 100, 70, 0.06);
+    animation: fade-up 0.35s var(--ease-out-expo) var(--delay, 0s) backwards;
   }
-  .snap-name { font-size: 0.85rem; color: var(--text-2); }
-  .snap-score {
+  .hbar-row:last-child { border-bottom: none; }
+
+  .hbar-label { min-width: 0; }
+  .hbar-name {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--text);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hbar-tracks { display: flex; flex-direction: column; gap: 4px; }
+  .hbar-track {
+    height: 26px;
+    background: var(--bg-track);
+    border-radius: 4px;
+    position: relative;
+  }
+  .hbar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    min-width: 50px;
+    animation: bar-grow 0.7s var(--ease-out-expo) var(--delay, 0s) backwards;
+  }
+  .hbar-fill.best { background: var(--bar-best); }
+  .hbar-fill.avg  { background: var(--bar-avg); }
+  .hbar-val {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-inv);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  .hbar-scores {
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: right;
+  }
+  .hbar-score-best {
     font-family: var(--font-mono);
     font-weight: 700;
-    font-size: 1rem;
-    color: var(--cyan);
+    font-size: 0.88rem;
+    color: var(--accent);
   }
-  .roadmap-list {
-    display: flex; flex-direction: column; gap: 14px;
-    margin-top: 14px;
+  .hbar-score-avg {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.82rem;
+    color: var(--bar-avg);
   }
-  .rm-item {
-    display: flex; align-items: flex-start; gap: 12px;
-    font-size: 0.9rem; color: var(--text-2);
+
+  .snapshot-card { margin-top: 24px; animation: fade-up 0.5s var(--ease-out-expo) 0.15s backwards; }
+  .col-rank { width: 44px; text-align: center; }
+  td.col-rank { text-align: center; }
+  .std-val { color: var(--text-3); font-size: 0.78rem; }
+
+  @media (max-width: 768px) {
+    .hbar-row {
+      grid-template-columns: 120px 1fr 60px;
+      gap: 8px; padding: 10px 0;
+    }
+    .hbar-name { font-size: 0.75rem; }
+    .hbar-scores { gap: 2px; }
+    .hbar-score-best { font-size: 0.78rem; }
+    .hbar-score-avg { font-size: 0.72rem; }
   }
-  .rm-item code {
-    font-family: var(--font-mono); font-size: 0.85em;
-    padding: 1px 5px; background: var(--bg-elevated);
-    border-radius: 3px; color: var(--cyan);
-  }
-  .rm-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    margin-top: 5px;
-    flex-shrink: 0;
-    border: 2px solid var(--text-3);
-    background: transparent;
-  }
-  .rm-item.done .rm-dot { background: var(--green); border-color: var(--green); }
 </style>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', function() {
+    var tabPB = document.getElementById('tab-pb');
+    var tabKO = document.getElementById('tab-ko');
+    var pbBars = document.getElementById('pb-bars');
+    var koBars = document.getElementById('ko-bars');
+    var meta = document.getElementById('graph-meta');
+
+    tabPB.addEventListener('click', function() {
+      tabPB.classList.add('active');
+      tabKO.classList.remove('active');
+      pbBars.style.display = '';
+      koBars.style.display = 'none';
+    });
+
+    tabKO.addEventListener('click', function() {
+      tabKO.classList.add('active');
+      tabPB.classList.remove('active');
+      koBars.style.display = '';
+      pbBars.style.display = 'none';
+    });
+  });
+</script>

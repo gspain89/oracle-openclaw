@@ -35,11 +35,13 @@ with open('$NORMALIZED/leaderboard.json') as f:
     data = json.load(f)
 models = data['models']
 pb = sum(1 for m in models if m['scores'].get('pinchbench'))
-ab = sum(1 for m in models if m['scores'].get('agentbench'))
-print(f'  모델: {len(models)}개')
-print(f'  PinchBench 완료: {pb}')
-print(f'  AgentBench 완료: {ab}')
-print(f'  최종 업데이트: {data[\"meta\"][\"last_updated\"]}')
+ko = sum(1 for m in models if m['scores'].get('clawbench_ko'))
+runs = data['meta'].get('total_runs', 0)
+print(f'  ��델: {len(models)}개')
+print(f'  PinchBench: {pb}개 모델')
+print(f'  ClawBench-KO: {ko}개 모델')
+print(f'  총 실행: {runs}회')
+print(f'  생성: {data[\"meta\"][\"generated_at\"]}')
 " 2>/dev/null || echo "  (요약 불가)"
 
 # ── 3) Git commit + push ──
@@ -62,4 +64,4 @@ git push origin main
 
 echo ""
 echo "배포 완료. GitHub Actions가 Pages를 자동 빌드합니다."
-echo "확인: https://github.com/gregyh/oracle-openclaw/actions"
+echo "확인: https://github.com/gspain89/oracle-openclaw/actions"

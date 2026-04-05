@@ -11,6 +11,8 @@
   --runs        반복 실행 횟수 (기본: 1)
   --output-dir  결과 저장 디렉토리
   --dry-run     실제 실행 없이 태스크 목록만 출력
+  --verbose     상세 로그 출력 (워크스페이스 파일, 에이전트 stdout 등)
+  --no-fail-fast  첫 태스크 0점이어도 계속 실행
 
 의존성: Python 3.8+ 표준 라이브러리만 사용
 """
@@ -18,8 +20,10 @@
 import argparse
 import hashlib
 import json
+import logging
 import os
 import shutil
+import statistics
 import subprocess
 import sys
 import time
@@ -29,6 +33,17 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 TASKS_DIR = SCRIPT_DIR / "tasks"
 MANIFEST_FILE = SCRIPT_DIR / "manifest.json"
+
+# --- Logging setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(SCRIPT_DIR / "benchmark.log"),
+    ],
+)
+logger = logging.getLogger("claw-bench-ko")
 
 
 def load_manifest():
@@ -49,7 +64,6 @@ def slug_from_model(model_id: str) -> str:
 
 def create_agent(agent_id: str, model: str, workspace: Path):
     """OpenClaw 에이전트 생성 (기존 동명 에이전트는 삭제 후 재생성)"""
-    # 동명 에이전트가 있으면 삭제 — 세션 격리를 위해 항상 새로 생성
     result = subprocess.run(
         ["openclaw", "agents", "list"],
         capture_output=True, text=True, timeout=30
@@ -59,7 +73,7 @@ def create_agent(agent_id: str, model: str, workspace: Path):
             ["openclaw", "agents", "delete", agent_id, "--force"],
             capture_output=True, text=True, timeout=30
         )
-        print(f"  기존 에이전트 삭제: {agent_id}")
+        logger.debug("  기존 에이전트 삭제: %s", agent_id)
 
     workspace.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -70,9 +84,9 @@ def create_agent(agent_id: str, model: str, workspace: Path):
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     if result.returncode != 0:
-        print(f"  WARN: 에이전트 생성 실패 — {result.stderr.strip()}")
+        logger.warning("  에이전트 생성 실패 — %s", result.stderr.strip())
         raise RuntimeError(f"에이전트 생성 실패: {result.stderr}")
-    print(f"  에이전트 생성: {agent_id} (model={model})")
+    logger.debug("  에이전트 생성: %s (model=%s)", agent_id, model)
 
 
 def delete_agent(agent_id: str):
@@ -81,12 +95,11 @@ def delete_agent(agent_id: str):
         ["openclaw", "agents", "delete", agent_id, "--force"],
         capture_output=True, text=True, timeout=30
     )
-    print(f"  에이전트 삭제: {agent_id}")
+    logger.debug("  에이전트 삭제: %s", agent_id)
 
 
 def setup_workspace(workspace: Path, task: dict):
     """워크스페이스를 초기화하고 태스크 입력 파일을 복사"""
-    # OpenClaw 관리 디렉토리는 보존하고 사용자 파일만 정리
     PRESERVE_DIRS = {".git", ".openclaw"}
     if workspace.exists():
         for item in workspace.iterdir():
@@ -114,7 +127,7 @@ def setup_workspace(workspace: Path, task: dict):
         if fpath.exists():
             content = fpath.read_text(encoding="utf-8")
             fpath.write_bytes(content.encode(target_enc))
-            print(f"    인코딩 변환: {filename} → {target_enc}")
+            logger.debug("    인코딩 변환: %s → %s", filename, target_enc)
 
 
 def run_agent_task(agent_id: str, session_id: str, prompt: str,
@@ -129,7 +142,6 @@ def run_agent_task(agent_id: str, session_id: str, prompt: str,
     ]
     start = time.time()
     try:
-        # subprocess timeout은 OpenClaw CLI timeout보다 여유 있게 설정
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout + 60
         )
@@ -138,7 +150,9 @@ def run_agent_task(agent_id: str, session_id: str, prompt: str,
             "stdout": result.stdout,
             "stderr": result.stderr,
             "returncode": result.returncode,
-            "duration_seconds": round(elapsed, 1)
+            "duration_seconds": round(elapsed, 1),
+            "timed_out": False,
+            "status": "success" if result.returncode == 0 else "error",
         }
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start
@@ -146,7 +160,9 @@ def run_agent_task(agent_id: str, session_id: str, prompt: str,
             "stdout": "",
             "stderr": f"TIMEOUT after {timeout}s",
             "returncode": -1,
-            "duration_seconds": round(elapsed, 1)
+            "duration_seconds": round(elapsed, 1),
+            "timed_out": True,
+            "status": "timeout",
         }
 
 
@@ -163,27 +179,28 @@ def collect_workspace_files(workspace: Path) -> dict:
 
 
 def run_single_task(agent_id: str, task: dict, workspace: Path,
-                    judge_model: str, run_index: int) -> dict:
+                    judge_model: str, run_index: int,
+                    verbose: bool = False) -> dict:
     """단일 태스크 1회 실행 + 채점"""
     task_id = task["id"]
     session_id = f"clawbench_{task_id}_{run_index}_{uuid.uuid4().hex[:8]}"
 
-    print(f"  [{task_id}] 워크스페이스 설정...")
     setup_workspace(workspace, task)
 
-    print(f"  [{task_id}] 에이전트 실행 중...")
     agent_result = run_agent_task(
         agent_id, session_id, task["prompt"],
         task.get("timeout_seconds", 180)
     )
 
-    if agent_result["returncode"] != 0:
-        print(f"  [{task_id}] 에이전트 실행 실패 (rc={agent_result['returncode']})")
-
     workspace_files = collect_workspace_files(workspace)
-    print(f"  [{task_id}] 워크스페이스 파일: {list(workspace_files.keys())}")
+    if verbose:
+        logger.info("    [VERBOSE] 워크스페이스 파일: %s",
+                     list(workspace_files.keys()))
+        if agent_result["stdout"]:
+            logger.info("    [VERBOSE] Stdout (500자): %s",
+                         agent_result["stdout"][:500])
 
-    # 채점은 grader 모듈에서 수행
+    # 채점
     from grader import grade_task
     grade_result = grade_task(
         task, workspace, agent_result["stdout"], judge_model
@@ -196,35 +213,84 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
         "grading_type": task["grading_type"],
         "run_index": run_index,
         "score": grade_result["score"],
+        "max_score": 1.0,
         "grading": grade_result,
         "duration_seconds": agent_result["duration_seconds"],
+        "timed_out": agent_result["timed_out"],
+        "status": agent_result["status"],
         "agent_returncode": agent_result["returncode"],
-        "workspace_files": list(workspace_files.keys())
+        "workspace_files": list(workspace_files.keys()),
     }
 
 
 def aggregate_runs(task_results: list) -> dict:
-    """같은 태스크의 복수 실행 결과를 best/average로 집계"""
+    """같은 태스크의 복수 실행 결과를 mean/std/min/max로 집계 (PinchBench 호환)"""
     if not task_results:
         return {}
 
     scores = [r["score"] for r in task_results]
-    best_idx = scores.index(max(scores))
 
     return {
         "task_id": task_results[0]["task_id"],
         "name": task_results[0]["name"],
         "category": task_results[0]["category"],
         "grading_type": task_results[0]["grading_type"],
-        "best_score": max(scores),
-        "average_score": round(sum(scores) / len(scores), 4),
-        "scores_per_run": scores,
-        "runs": len(scores),
-        "best_run": task_results[best_idx],
+        "grading": {
+            "runs": [r["grading"] for r in task_results],
+            "mean": statistics.mean(scores),
+            "std": statistics.stdev(scores) if len(scores) > 1 else 0.0,
+            "min": min(scores),
+            "max": max(scores),
+        },
         "average_duration_seconds": round(
             sum(r["duration_seconds"] for r in task_results) / len(task_results), 1
-        )
+        ),
     }
+
+
+def _log_category_summary(aggregated: list):
+    """카테고리별 점수 요약 (PinchBench 형식)"""
+    category_scores = {}
+    for agg in aggregated:
+        cat = agg["category"].upper()
+        mean = agg["grading"]["mean"]
+        if cat not in category_scores:
+            category_scores[cat] = {"earned": 0.0, "possible": 0.0, "task_count": 0}
+        category_scores[cat]["earned"] += mean
+        category_scores[cat]["possible"] += 1.0
+        category_scores[cat]["task_count"] += 1
+
+    total_earned = sum(c["earned"] for c in category_scores.values())
+    total_possible = sum(c["possible"] for c in category_scores.values())
+    overall_pct = (total_earned / total_possible * 100) if total_possible > 0 else 0
+
+    logger.info("\n%s", "=" * 80)
+    logger.info("🦀 CLAWBENCH-KO SCORE SUMMARY")
+    logger.info("%s", "=" * 80)
+    logger.info("")
+    logger.info("   Overall Score: %.1f%% (%.1f / %.1f)",
+                overall_pct, total_earned, total_possible)
+    logger.info("")
+    logger.info("   %-24s %8s %12s", "CATEGORY", "SCORE", "TASKS")
+    logger.info("   %s", "-" * 44)
+
+    for cat in sorted(category_scores.keys()):
+        data = category_scores[cat]
+        pct = (data["earned"] / data["possible"] * 100) if data["possible"] > 0 else 0
+        count = data["task_count"]
+        task_label = "task" if count == 1 else "tasks"
+
+        if pct >= 90:
+            indicator = "🟢"
+        elif pct >= 70:
+            indicator = "🟡"
+        else:
+            indicator = "🔴"
+
+        logger.info("   %s %-20s %6.1f%% %6d %s",
+                     indicator, cat, pct, count, task_label)
+
+    logger.info("   %s", "-" * 44)
 
 
 def main():
@@ -238,14 +304,23 @@ def main():
     parser.add_argument("--output-dir", default=None, help="결과 저장 디렉토리")
     parser.add_argument("--dry-run", action="store_true",
                         help="실행 없이 태스크 목록만 출력")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                        help="상세 로그 출력")
+    parser.add_argument("--no-fail-fast", action="store_true",
+                        help="첫 태스크 0점이어도 계속 실행")
     args = parser.parse_args()
 
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+
     manifest = load_manifest()
-    print(f"=== {manifest['name']} v{manifest['version']} ===")
-    print(f"모델: {args.model}")
-    print(f"Judge: {args.judge}")
-    print(f"반복: {args.runs}회")
-    print()
+    logger.info("=" * 80)
+    logger.info("🦀 ClawBench-KO v%s", manifest["version"])
+    logger.info("=" * 80)
+    logger.info("   Model: %s", args.model)
+    logger.info("   Judge: %s", args.judge)
+    logger.info("   Runs:  %d", args.runs)
+    logger.info("")
 
     # 실행할 태스크 목록 결정
     task_ids = [t["id"] for t in manifest["tasks"]]
@@ -253,17 +328,17 @@ def main():
         requested = [t.strip() for t in args.task.split(",")]
         task_ids = [t for t in task_ids if t in requested]
         if not task_ids:
-            print(f"ERROR: 유효한 태스크 없음. 가능한 태스크: "
-                  f"{[t['id'] for t in manifest['tasks']]}")
+            logger.error("유효한 태스크 없음. 가능한 태스크: %s",
+                         [t["id"] for t in manifest["tasks"]])
             sys.exit(1)
 
-    print(f"태스크: {len(task_ids)}개 — {task_ids}")
+    logger.info("   Tasks: %d — %s", len(task_ids), task_ids)
 
     if args.dry_run:
-        print("\n[DRY RUN] 실행하지 않음")
+        logger.info("\n[DRY RUN] 실행하지 않음")
         for tid in task_ids:
             t = load_task(tid)
-            print(f"  {tid}: {t['name']} ({t['grading_type']})")
+            logger.info("  %s: %s (%s)", tid, t["name"], t["grading_type"])
         sys.exit(0)
 
     # 출력 디렉토리 설정
@@ -275,20 +350,27 @@ def main():
         output_dir = SCRIPT_DIR / "results" / f"{model_slug}_{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 태스크 실행 — 세션 격리를 위해 태스크마다 에이전트를 새로 생성/삭제
+    # 태스크 실행
     all_results = {}  # task_id → [run results]
     total_start = time.time()
+    total_tasks = len(task_ids)
+    runs_per_task = args.runs
 
-    for task_id in task_ids:
+    for task_idx, task_id in enumerate(task_ids, 1):
         task = load_task(task_id)
         all_results[task_id] = []
 
-        for run_i in range(args.runs):
-            run_label = f"run {run_i + 1}/{args.runs}" if args.runs > 1 else ""
-            print(f"\n── {task['name']} ({task_id}) {run_label} ──")
+        for run_i in range(runs_per_task):
+            # PinchBench 스타일 진행 헤더
+            logger.info("\n%s", "=" * 80)
+            logger.info("📋 Task %d/%d (Run %d/%d)",
+                        task_idx, total_tasks, run_i + 1, runs_per_task)
+            logger.info("%s", "=" * 80)
+            logger.info("🤖 Agent starting task: %s", task_id)
+            logger.info("   Task: %s", task["name"])
+            logger.info("   Category: %s", task["category"])
 
             # 태스크마다 고유 에이전트 생성 (세션 격리)
-            # agent ID를 짧게 유지 (OpenClaw가 긴 ID를 절단함)
             run_id = uuid.uuid4().hex[:6]
             model_hash = hashlib.md5(model_slug.encode()).hexdigest()[:6]
             agent_id = f"cb-{model_hash}-{task_id}-{run_i}"
@@ -296,15 +378,36 @@ def main():
             create_agent(agent_id, args.model, workspace)
 
             result = run_single_task(
-                agent_id, task, workspace, args.judge, run_i
+                agent_id, task, workspace, args.judge, run_i,
+                verbose=args.verbose,
             )
             all_results[task_id].append(result)
 
-            # 에이전트 삭제 — 다음 태스크와 세션이 섞이지 않도록
             delete_agent(agent_id)
 
-            score_pct = f"{result['score'] * 100:.1f}%"
-            print(f"  점수: {score_pct} ({result['duration_seconds']}초)")
+            # PinchBench 스타일 점수 표시
+            score = result["score"]
+            max_score = result["max_score"]
+            score_pct = score / max_score * 100 if max_score > 0 else 0
+            if score >= max_score:
+                emoji = "✅"
+            elif score > 0:
+                emoji = "⚠️"
+            else:
+                emoji = "❌"
+
+            logger.info("%s Task %s: %.1f/%.1f (%.0f%%) - %s",
+                        emoji, task_id, score, max_score, score_pct,
+                        task["grading_type"])
+
+            # fail-fast: 첫 태스크가 0점이면 중단
+            if (task_idx == 1 and run_i == 0
+                    and score == 0 and not args.no_fail_fast):
+                logger.error(
+                    "🚨 FAIL FAST: 첫 태스크 (%s) 0%%. "
+                    "벤치마크를 중단합니다. --no-fail-fast로 우회 가능.",
+                    task_id)
+                sys.exit(3)
 
     total_elapsed = time.time() - total_start
 
@@ -314,60 +417,73 @@ def main():
         agg = aggregate_runs(all_results[task_id])
         aggregated.append(agg)
 
-    best_scores = [a["best_score"] for a in aggregated]
-    avg_scores = [a["average_score"] for a in aggregated]
-    overall_best = round(sum(best_scores) / len(best_scores), 4) if best_scores else 0
-    overall_avg = round(sum(avg_scores) / len(avg_scores), 4) if avg_scores else 0
+    # --- 결과 JSON 생성 (PinchBench 호환 스키마) ---
+    task_entries = []
+    for task_id in task_ids:
+        for r in all_results[task_id]:
+            task_entries.append({
+                "task_id": r["task_id"],
+                "status": r["status"],
+                "timed_out": r["timed_out"],
+                "execution_time": r["duration_seconds"],
+                "workspace_files": r["workspace_files"],
+                "grading": next(
+                    a["grading"] for a in aggregated if a["task_id"] == task_id
+                ),
+                "frontmatter": {
+                    "id": r["task_id"],
+                    "name": r["name"],
+                    "category": r["category"],
+                    "grading_type": r["grading_type"],
+                },
+            })
 
-    # 결과 JSON 생성
+    # overall score
+    all_means = [a["grading"]["mean"] for a in aggregated]
+    total_earned = sum(all_means)
+    total_possible = float(len(aggregated))
+    overall_pct = (total_earned / total_possible * 100) if total_possible > 0 else 0
+
     output = {
         "benchmark": "claw-bench-ko",
         "version": manifest["version"],
         "model": args.model,
         "judge": args.judge,
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "runs_per_task": args.runs,
-        "overall_best_score": overall_best,
-        "overall_average_score": overall_avg,
+        "timestamp": time.time(),
+        "suite": args.task or "all",
+        "runs_per_task": runs_per_task,
+        "overall_score": {
+            "mean": round(total_earned / total_possible, 4) if total_possible else 0,
+            "total_earned": round(total_earned, 4),
+            "total_possible": total_possible,
+        },
         "total_duration_seconds": round(total_elapsed, 1),
-        "tasks": aggregated,
-        "summary": {
-            "total": len(aggregated),
-            "by_category": _count_by(aggregated, "category"),
-            "by_grading_type": _count_by(aggregated, "grading_type"),
-        }
+        "tasks": task_entries,
     }
 
     result_file = output_dir / "results.json"
     with open(result_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
-    # 결과 요약 출력
-    print(f"\n{'=' * 50}")
-    print(f"=== 결과 요약 ===")
-    print(f"모델: {args.model}")
-    print(f"전체 best: {overall_best * 100:.1f}%")
-    print(f"전체 average: {overall_avg * 100:.1f}%")
-    print(f"소요 시간: {total_elapsed:.0f}초 ({total_elapsed / 60:.1f}분)")
-    print()
+    # --- 최종 요약 출력 (PinchBench 스타일) ---
+    logger.info("📊 Final score: %.2f/%.0f (%.1f%%)",
+                total_earned, total_possible, overall_pct)
+    logger.info("Saved results to %s", result_file)
 
-    for agg in aggregated:
-        best_pct = f"{agg['best_score'] * 100:.1f}%"
-        avg_pct = f"{agg['average_score'] * 100:.1f}%"
-        if args.runs > 1:
-            print(f"  {agg['task_id']:25s} best={best_pct:>6s}  avg={avg_pct:>6s}")
-        else:
-            print(f"  {agg['task_id']:25s} {best_pct:>6s}")
+    _log_category_summary(aggregated)
 
-    print(f"\n결과 저장: {result_file}")
-
-
-def _count_by(items: list, key: str) -> dict:
-    counts = {}
-    for item in items:
-        val = item.get(key, "unknown")
-        counts[val] = counts.get(val, 0) + 1
-    return counts
+    # 토큰 효율 요약은 ClawBench-KO에서 토큰 추적이 불가하므로
+    # 실행 시간 기반 요약으로 대체
+    logger.info("\n%s", "=" * 80)
+    logger.info("⏱️  EXECUTION SUMMARY")
+    logger.info("%s", "=" * 80)
+    logger.info("   Total duration: %.0fs (%.1f min)",
+                total_elapsed, total_elapsed / 60)
+    logger.info("   Tasks: %d × %d runs = %d executions",
+                len(task_ids), runs_per_task, len(task_ids) * runs_per_task)
+    avg_dur = total_elapsed / (len(task_ids) * runs_per_task)
+    logger.info("   Avg per execution: %.1fs", avg_dur)
+    logger.info("%s", "=" * 80)
 
 
 if __name__ == "__main__":

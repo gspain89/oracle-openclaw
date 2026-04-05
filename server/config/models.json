@@ -4,51 +4,85 @@
       "id": "qwen3.5-27b",
       "provider": "dashscope",
       "name": "Qwen 3.5 27B",
+      "provider_label": "DashScope (Alibaba)",
       "free": false,
       "input_price_per_1m": 1.10,
       "output_price_per_1m": 4.40,
+      "params_b": 27,
       "context_window_tokens": 131072,
-      "notes": "DashScope 무료 크레딧 1M tokens 사용 가능. PinchBench 4위"
+      "notes": "DashScope 무료 크레딧 1M tokens 사용 가능"
     },
     {
       "id": "qwen3.5-plus",
       "provider": "dashscope",
       "name": "Qwen 3.5 Plus",
+      "provider_label": "DashScope (Alibaba)",
       "free": false,
       "input_price_per_1m": 0.80,
       "output_price_per_1m": 2.00,
+      "params_b": 72,
       "context_window_tokens": 131072,
-      "notes": "DashScope. Plus 변형 — 응답 속도 빠름"
+      "notes": "Plus 변형 — 응답 속도 빠름"
     },
     {
       "id": "glm-5",
       "provider": "dashscope",
-      "name": "GLM-5 (Zhipu)",
+      "name": "GLM-5",
+      "provider_label": "DashScope (Z.AI)",
       "free": false,
       "input_price_per_1m": 3.00,
       "output_price_per_1m": 12.00,
+      "params_b": 400,
       "context_window_tokens": 131072,
-      "notes": "Z.AI $9 크레딧 사용. PinchBench 점수 미측정 — 세계 최초 측정 목표"
+      "notes": "Z.AI $9 크레딧 사용"
     },
     {
       "id": "glm-5.1",
       "provider": "dashscope",
-      "name": "GLM-5.1 (Zhipu)",
+      "name": "GLM-5.1",
+      "provider_label": "DashScope (Z.AI)",
       "free": false,
       "input_price_per_1m": 3.00,
       "output_price_per_1m": 12.00,
+      "params_b": 600,
       "context_window_tokens": 131072,
       "notes": "GLM-5 후속. Z.AI 크레딧 사용"
     },
     {
       "id": "nvidia/nemotron-3-super-120b-a12b:free",
       "provider": "openrouter",
-      "name": "Nemotron 3 Super 120B",
+      "name": "Nemotron 120B",
+      "provider_label": "OpenRouter (NVIDIA)",
       "free": true,
       "input_price_per_1m": 0,
       "output_price_per_1m": 0,
+      "params_b": 120,
       "context_window_tokens": 131072,
-      "notes": "PinchBench 97.7% (automated-only). OpenRouter :free 모델 중 최고 성적"
+      "notes": "OpenRouter :free 모델 중 최고 성적"
+    },
+    {
+      "id": "qwen3.5-122b-a10b",
+      "provider": "dashscope",
+      "name": "Qwen 3.5 122B",
+      "provider_label": "DashScope (Alibaba)",
+      "free": true,
+      "input_price_per_1m": 0,
+      "output_price_per_1m": 0,
+      "params_b": 122,
+      "context_window_tokens": 131072,
+      "notes": "MoE 122B (10B active). 무료 체험 기간"
+    },
+    {
+      "id": "qwen3-8b",
+      "provider": "dashscope",
+      "name": "Qwen3-8B",
+      "provider_label": "DashScope (Alibaba)",
+      "free": true,
+      "input_price_per_1m": 0,
+      "output_price_per_1m": 0,
+      "params_b": 8,
+      "context_window_tokens": 131072,
+      "notes": "소형 모델 베이스라인"
     }
   ]
 }

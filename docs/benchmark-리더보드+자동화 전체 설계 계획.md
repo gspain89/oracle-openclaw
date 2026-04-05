@@ -1,8 +1,8 @@
 # OpenClaw 벤치마크 자동화 + 리더보드 시스템
 
 > 작성일: 2026-04-03
-> 최종 수정: 2026-04-04
-> 상태: Phase 0~1 완료, Phase 2 진행 예정
+> 최종 수정: 2026-04-05
+> 상태: Phase 0~2 완료, Phase 3 파이프라인 구축 완료 (실데이터 실행 전)
 
 ## 1. 배경 및 목표
 
@@ -187,21 +187,23 @@ OpenClaw gateway 데몬은 **30분 주기로 LLM을 호출**하는 하트비트 
 
 **조치 (2026-04-03)**: `openclaw system heartbeat disable`로 비활성화. 설정은 영구 저장됨. 대안으로 `agents.defaults.heartbeat.every`를 `"0m"`으로 설정해도 동일.
 
-### Phase 2: 한국어 커스텀 벤치마크
+### Phase 2: 한국어 커스텀 벤치마크 — 완료
 
-- 15개 태스크 작성 (아래 §7 참조)
-- 3가지 채점 방식: structured(JSON 필드 비교), semantic(LLM 판정), exact(정확 일치)
-- 판정 LLM: GLM-4.5-Flash (무료)
+- 10개 태스크 구현 (초기 15개 계획에서 축소. §7은 원래 계획, 실제 구현은 `claw-bench-ko-테스크 전체구조.md` 참조)
+- 3가지 채점 방식: automated(JSON 필드 비교), llm_judge(GPT-5.2 판정), hybrid(자동+LLM)
+- 판정 LLM: azure-openai/gpt-5.2-chat
 
 **산출물**: 세계 유일의 한국어 OpenClaw 벤치마크
 
-### Phase 3: 리더보드 사이트 실데이터 연동
+### Phase 3: 리더보드 사이트 + 자동화 파이프라인 — 파이프라인 완료
 
-- PinchBench + Korean 실측 데이터로 `leaderboard.json` 교체
-- GitHub Pages 배포
-- 모델 비교 뷰(`compare.astro`) 활성화
+- Astro 정적 사이트 5페이지 구현 (index, compare, cost, history, korean)
+- `normalize.py`: raw 결과 → leaderboard.json 다중 실행 집계 (best/average/std)
+- `run-all.sh`: 모델+횟수 지정 → PinchBench + ClawBench-KO 순차 실행 → normalize 자동 호출
+- `deploy-results.sh`: leaderboard.json git push → GitHub Actions → Pages 자동 배포
+- E2E 검증 완료 (fake raw → normalize → build → 5페이지 렌더링 확인)
 
-**산출물**: 공개 접근 가능한 리더보드 웹사이트
+**남은 작업**: 실제 모델로 벤치마크 실행 (`bash run-all.sh <model> --runs 3`)
 
 ### Phase 4: 정기 실행 + 히스토리
 
@@ -213,9 +215,12 @@ OpenClaw gateway 데몬은 **30분 주기로 LLM을 호출**하는 하트비트 
 
 초기 계획에서 "OpenClaw 내장 `/benchmark`"로 가정했으나, OpenClaw v2026.4.2에 해당 기능이 존재하지 않음. OpenClaw의 벤치마크 관련 기능은 Model latency bench(추론 속도 ms 측정)와 CLI startup bench(CLI 시작 시간 프로파일링)뿐이며, 에이전트 능력 평가 프레임워크가 아님. 2026-04-04 확인 후 삭제.
 
-## 7. 한국어 벤치마크 태스크 설계
+## 7. 한국어 벤치마크 태스크 설계 (초기 계획)
 
-3개 카테고리, 15개 태스크:
+> 초기 15개 태스크를 계획했으나 실제로는 10개를 구현했다.
+> 구현된 10개 태스크의 상세 구조는 `claw-bench-ko-테스크 전체구조.md` 참조.
+
+3개 카테고리, 15개 태스크 (초기 계획):
 
 **한국어 처리 (5개)**
 

@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-let data = { meta: {}, models: [] };
+let data: any = { meta: {}, models: [] };
 try {
   const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'leaderboard.json'), 'utf-8');
   data = JSON.parse(raw);
@@ -15,7 +15,7 @@ const modelsJson = JSON.stringify(models);
 
 <Layout title="모델 비교">
   <div class="page-header">
-    <h1>모델 <span class="accent">비교</span></h1>
+    <h1>Model <span class="accent">Comparison</span></h1>
     <p>두 모델의 벤치마크 결과를 나란히 비교</p>
   </div>
 
@@ -23,16 +23,14 @@ const modelsJson = JSON.stringify(models);
     <div class="field-group">
       <label class="field-label" for="model-a">모델 A</label>
       <select id="model-a">
-        <option value="">선택...</option>
-        {models.map((m, i) => <option value={i} selected={i === 0}>{m.name}</option>)}
+        {models.map((m: any, i: number) => <option value={i} selected={i === 0}>{m.name}</option>)}
       </select>
     </div>
     <div class="compare-vs">VS</div>
     <div class="field-group">
       <label class="field-label" for="model-b">모델 B</label>
       <select id="model-b">
-        <option value="">선택...</option>
-        {models.map((m, i) => <option value={i} selected={i === 1}>{m.name}</option>)}
+        {models.map((m: any, i: number) => <option value={i} selected={i === 1}>{m.name}</option>)}
       </select>
     </div>
   </div>
@@ -41,7 +39,7 @@ const modelsJson = JSON.stringify(models);
     <div class="card">
       <h3>레이더 비교</h3>
       <div class="radar-wrap">
-        <div id="radar-chart" style="width:100%;height:340px;"></div>
+        <canvas id="radar-chart" width="400" height="340"></canvas>
       </div>
     </div>
     <div class="card">
@@ -61,7 +59,7 @@ const modelsJson = JSON.stringify(models);
   </div>
 </Layout>
 
-<style>
+<style is:global>
   .compare-selectors {
     display: flex; align-items: flex-end; gap: 20px;
     margin-bottom: 32px;
@@ -69,12 +67,9 @@ const modelsJson = JSON.stringify(models);
   }
   .compare-vs {
     font-family: var(--font-display);
-    font-weight: 800; font-size: 1.3rem;
+    font-size: 1.3rem;
     padding-bottom: 11px;
-    background: linear-gradient(135deg, var(--text-3), var(--text-2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--text-3);
   }
   .compare-grid {
     display: grid; grid-template-columns: 1fr 1fr;
@@ -87,7 +82,7 @@ const modelsJson = JSON.stringify(models);
     .compare-vs { text-align: center; padding: 0; }
     .compare-grid { grid-template-columns: 1fr; }
   }
-  .radar-wrap { margin-top: 8px; }
+  .radar-wrap { margin-top: 8px; display: flex; justify-content: center; }
   .metric-bars { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
   .metric-row { display: flex; flex-direction: column; gap: 5px; }
   .metric-label {
@@ -97,17 +92,16 @@ const modelsJson = JSON.stringify(models);
   .metric-track { display: flex; height: 28px; gap: 4px; border-radius: 6px; overflow: hidden; }
   .metric-fill {
     height: 100%; border-radius: 6px; min-width: 3px;
-    transition: width 0.6s var(--ease-out-expo);
     display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
-    font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; color: var(--text);
+    font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; color: var(--text-inv);
   }
-  .metric-fill.a { background: linear-gradient(90deg, rgba(0,232,196,0.3), rgba(0,232,196,0.15)); }
-  .metric-fill.b { background: linear-gradient(90deg, rgba(167,139,250,0.3), rgba(167,139,250,0.15)); }
-  .metric-fill.empty { background: rgba(10,15,30,0.4); flex: 1; }
+  .metric-fill.a { background: var(--bar-best); }
+  .metric-fill.b { background: var(--blue); }
+  .metric-fill.empty { background: var(--bg-track); flex: 1; }
   .detail-table { width: 100%; margin-top: 14px; }
   .detail-table th, .detail-table td { padding: 10px 14px; font-size: 0.85rem; }
   .detail-table td:first-child { color: var(--text-2); }
-  .winner { color: var(--cyan); font-weight: 600; }
+  .winner { color: var(--accent); font-weight: 600; }
 </style>
 
 <script is:inline define:vars={{ modelsJson }}>
@@ -118,116 +112,142 @@ const modelsJson = JSON.stringify(models);
     var radarChart = null;
 
     var METRICS = [
-      { key: 'pinchbench', label: 'PinchBench', max: 100 },
-      { key: 'agentbench', label: 'AgentBench', max: 100 },
-      { key: 'korean',     label: '한국어',      max: 100 },
+      { key: 'pinchbench', label: 'PinchBench', max: 100, get: function(m) { return m.scores.pinchbench ? m.scores.pinchbench.best : 0; } },
+      { key: 'clawbench_ko', label: 'ClawBench-KO', max: 100, get: function(m) { return m.scores.clawbench_ko ? m.scores.clawbench_ko.best : 0; } },
+      { key: 'speed', label: '속도 (norm)', max: 100, get: function(m) {
+        var maxT = 55, minT = 15;
+        var t = m.avg_seconds_per_task || maxT;
+        return Math.max(0, Math.min(100, 100 - ((t - minT) / (maxT - minT)) * 100));
+      }},
+      { key: 'cost', label: '가성비 (norm)', max: 100, get: function(m) {
+        if (m.cost_per_run_usd === 0) return 100;
+        return Math.max(0, 100 - (m.cost_per_run_usd / 1.0) * 100);
+      }},
     ];
-
-    function gs(model, key) {
-      return model && model.scores && model.scores[key] ? model.scores[key].score : null;
-    }
 
     function update() {
       var a = models[+selA.value] || null;
       var b = models[+selB.value] || null;
-      var dataA = METRICS.map(function(m){ return gs(a,m.key) || 0; });
-      var dataB = METRICS.map(function(m){ return gs(b,m.key) || 0; });
+      var dataA = METRICS.map(function(m) { return a ? m.get(a) : 0; });
+      var dataB = METRICS.map(function(m) { return b ? m.get(b) : 0; });
 
-      /* ── ECharts Radar ── */
-      var dom = document.getElementById('radar-chart');
-      if (!radarChart) radarChart = echarts.init(dom);
+      /* Chart.js Radar */
+      var ctx = document.getElementById('radar-chart');
+      if (radarChart) radarChart.destroy();
 
-      radarChart.setOption({
-        backgroundColor: 'transparent',
-        legend: {
-          bottom: 0,
-          textStyle: { color: '#8794b5', fontFamily: 'Noto Sans KR', fontSize: 12 },
-          itemWidth: 14, itemHeight: 8,
-          itemStyle: { borderWidth: 0 },
-        },
-        radar: {
-          indicator: METRICS.map(function(m){ return { name: m.label, max: m.max }; }),
-          shape: 'circle',
-          splitNumber: 5,
-          center: ['50%', '46%'],
-          radius: '65%',
-          axisName: { color: '#8794b5', fontFamily: 'Noto Sans KR', fontSize: 12 },
-          axisLine: { lineStyle: { color: 'rgba(40,60,110,0.25)' } },
-          splitLine: { lineStyle: { color: 'rgba(40,60,110,0.2)' } },
-          splitArea: {
-            areaStyle: {
-              color: ['rgba(10,15,30,0.3)', 'rgba(15,22,40,0.2)', 'rgba(10,15,30,0.3)', 'rgba(15,22,40,0.2)', 'rgba(10,15,30,0.3)'],
-            }
-          },
-        },
-        series: [{
-          type: 'radar',
-          symbol: 'circle',
-          symbolSize: 7,
-          animationDuration: 800,
-          animationEasing: 'cubicOut',
-          data: [
+      radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: METRICS.map(function(m) { return m.label; }),
+          datasets: [
             {
-              name: a ? a.name : '—',
-              value: dataA,
-              areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(0,232,196,0.25)' },
-                { offset: 1, color: 'rgba(0,232,196,0.02)' },
-              ])},
-              lineStyle: { color: '#00e8c4', width: 2.5, shadowColor: 'rgba(0,232,196,0.3)', shadowBlur: 8 },
-              itemStyle: { color: '#00e8c4', borderColor: '#040712', borderWidth: 2 },
+              label: a ? a.name : '—',
+              data: dataA,
+              backgroundColor: 'rgba(140, 36, 22, 0.1)',
+              borderColor: '#8c2416',
+              borderWidth: 2.5,
+              pointBackgroundColor: '#8c2416',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              pointRadius: 5,
             },
             {
-              name: b ? b.name : '—',
-              value: dataB,
-              areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(167,139,250,0.25)' },
-                { offset: 1, color: 'rgba(167,139,250,0.02)' },
-              ])},
-              lineStyle: { color: '#a78bfa', width: 2.5, shadowColor: 'rgba(167,139,250,0.3)', shadowBlur: 8 },
-              itemStyle: { color: '#a78bfa', borderColor: '#040712', borderWidth: 2 },
+              label: b ? b.name : '—',
+              data: dataB,
+              backgroundColor: 'rgba(37, 99, 168, 0.1)',
+              borderColor: '#2563a8',
+              borderWidth: 2.5,
+              pointBackgroundColor: '#2563a8',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              pointRadius: 5,
             }
           ]
-        }],
-        tooltip: {
-          backgroundColor: 'rgba(10,15,30,0.92)',
-          borderColor: 'rgba(40,60,110,0.4)', borderWidth: 1,
-          textStyle: { color: '#e8ecf6', fontFamily: 'Noto Sans KR', fontSize: 13 },
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            r: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                stepSize: 20,
+                color: '#9e9082',
+                font: { family: 'IBM Plex Mono', size: 10 },
+                backdropColor: 'transparent',
+              },
+              grid: { color: 'rgba(120, 100, 70, 0.12)' },
+              angleLines: { color: 'rgba(120, 100, 70, 0.12)' },
+              pointLabels: {
+                color: '#6b5e50',
+                font: { family: 'Noto Sans KR', size: 12, weight: '500' },
+              },
+            }
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#6b5e50',
+                font: { family: 'Noto Sans KR', size: 12 },
+                usePointStyle: true,
+                pointStyle: 'circle',
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(26, 20, 16, 0.92)',
+              titleColor: '#f0ead8',
+              bodyColor: '#f0ead8',
+              borderColor: 'rgba(120, 100, 70, 0.3)',
+              borderWidth: 1,
+              bodyFont: { family: 'IBM Plex Mono' },
+            }
+          },
+          animation: { duration: 600, easing: 'easeOutCubic' },
         }
-      }, true);
+      });
 
-      /* ── Metric Bars ── */
+      /* Metric Bars */
       var barsEl = document.getElementById('metric-bars');
       barsEl.innerHTML = '';
       METRICS.forEach(function(m) {
-        var sa = gs(a, m.key);
-        var sb = gs(b, m.key);
-        var pctA = sa !== null ? (sa / m.max * 50) : 0;
-        var pctB = sb !== null ? (sb / m.max * 50) : 0;
+        var sa = a ? m.get(a) : 0;
+        var sb = b ? m.get(b) : 0;
+        var pctA = sa / m.max * 45;
+        var pctB = sb / m.max * 45;
         barsEl.innerHTML +=
           '<div class="metric-row">' +
             '<span class="metric-label">' + m.label + '</span>' +
             '<div class="metric-track">' +
-              '<div class="metric-fill a" style="width:' + pctA + '%">' + (sa !== null ? sa.toFixed(1) : '—') + '</div>' +
-              '<div class="metric-fill b" style="width:' + pctB + '%">' + (sb !== null ? sb.toFixed(1) : '—') + '</div>' +
-              (pctA + pctB < 100 ? '<div class="metric-fill empty"></div>' : '') +
+              '<div class="metric-fill a" style="width:' + pctA + '%">' + sa.toFixed(1) + '</div>' +
+              '<div class="metric-fill b" style="width:' + pctB + '%">' + sb.toFixed(1) + '</div>' +
+              '<div class="metric-fill empty"></div>' +
             '</div>' +
           '</div>';
       });
 
-      /* ── Detail Table ── */
+      /* Detail Table */
       document.getElementById('th-a').textContent = a ? a.name : '—';
       document.getElementById('th-b').textContent = b ? b.name : '—';
       var tbody = document.getElementById('detail-body');
+
+      function val(model, fn, fallback) { return model ? fn(model) : fallback || '—'; }
+
       var rows = [
-        ['제공자', a ? a.provider : '—', b ? b.provider : '—'],
-        ['무료', a ? (a.free ? '예' : '아니오') : '—', b ? (b.free ? '예' : '아니오') : '—'],
-        ['비용/회', a ? '$' + a.cost_per_run_usd.toFixed(2) : '—', b ? '$' + b.cost_per_run_usd.toFixed(2) : '—'],
-        ['PinchBench 태스크', a && a.scores.pinchbench ? a.scores.pinchbench.completed + '/' + a.scores.pinchbench.total : '—', b && b.scores.pinchbench ? b.scores.pinchbench.completed + '/' + b.scores.pinchbench.total : '—'],
+        ['제공자', val(a, function(m){return m.provider_label;}), val(b, function(m){return m.provider_label;})],
+        ['무료', val(a, function(m){return m.free ? '예' : '아니오';}), val(b, function(m){return m.free ? '예' : '아니오';})],
+        ['비용/회', val(a, function(m){return '$' + m.cost_per_run_usd.toFixed(2);}), val(b, function(m){return '$' + m.cost_per_run_usd.toFixed(2);})],
+        ['파라미터', val(a, function(m){return m.params_b + 'B';}), val(b, function(m){return m.params_b + 'B';})],
+        ['평균 속도', val(a, function(m){return m.avg_seconds_per_task + 's/task';}), val(b, function(m){return m.avg_seconds_per_task + 's/task';})],
+        ['PinchBench (best)', val(a, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';})],
+        ['ClawBench-KO (best)', val(a, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';})],
       ];
+
       tbody.innerHTML = rows.map(function(r) {
-        var ca = r[1] !== '—' && r[2] !== '—' && r[1] > r[2] ? ' winner' : '';
-        var cb = r[1] !== '—' && r[2] !== '—' && r[2] > r[1] ? ' winner' : '';
+        var va = parseFloat(r[1]) || 0;
+        var vb = parseFloat(r[2]) || 0;
+        var ca = va > vb && va > 0 ? ' winner' : '';
+        var cb = vb > va && vb > 0 ? ' winner' : '';
         return '<tr><td>' + r[0] + '</td><td class="' + ca + '">' + r[1] + '</td><td class="' + cb + '">' + r[2] + '</td></tr>';
       }).join('');
     }
@@ -235,6 +255,5 @@ const modelsJson = JSON.stringify(models);
     selA.addEventListener('change', update);
     selB.addEventListener('change', update);
     update();
-    window.addEventListener('resize', function() { if(radarChart) radarChart.resize(); });
   });
 </script>

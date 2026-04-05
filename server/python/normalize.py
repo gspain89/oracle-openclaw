@@ -1,295 +1,446 @@
 #!/usr/bin/env python3
-"""normalize.py — PinchBench 원본 결과를 leaderboard.json으로 통합
+"""normalize.py — raw 벤치마크 결과 → leaderboard.json 생성
 
-사용법: python3 normalize.py
-  - results/raw/pinchbench/*.json 에서 각 모델의 최신 결과를 읽음
-  - server/config/models.json 의 모델 레지스트리와 병합
-  - results/normalized/leaderboard.json 생성
+사용법:
+  python3 normalize.py                  # 기본 경로 사용
+  python3 normalize.py --repo-root /x   # 저장소 루트 명시
 
-의존성: 표준 라이브러리만 사용 (pip 의존성 0)
+동작:
+  1. results/raw/pinchbench/ 와 results/raw/korean/ 에서 모든 결과 JSON 수집
+  2. 각 JSON 내부의 model 필드로 모델 식별 → models.json과 매칭
+  3. 모델별 다중 실행 집계: best, average, std 계산
+  4. results/normalized/leaderboard.json 생성
+
+의존성: 표준 라이브러리만 (pip 의존성 0)
 """
 
 import json
 import os
-import glob
+import sys
+import math
+import argparse
 from datetime import datetime, timezone
+from pathlib import Path
 
-# 경로 설정 — 이 스크립트는 server/python/ 에 위치
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
+# ── 경로 설정 ──
 
-RAW_PINCHBENCH = os.path.join(REPO_ROOT, 'results', 'raw', 'pinchbench')
-RAW_AGENTBENCH = os.path.join(REPO_ROOT, 'results', 'raw', 'agentbench')
-RAW_KOREAN = os.path.join(REPO_ROOT, 'results', 'raw', 'korean')
-MODELS_FILE = os.path.join(REPO_ROOT, 'server', 'config', 'models.json')
-OUTPUT_FILE = os.path.join(REPO_ROOT, 'results', 'normalized', 'leaderboard.json')
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_REPO_ROOT = SCRIPT_DIR.parent.parent
+
+PROVIDER_PREFIXES = ("openrouter/", "modelstudio/", "azure-openai/")
 
 
-def load_models_registry():
-    """models.json에서 모델 레지스트리 로드"""
-    with open(MODELS_FILE, encoding='utf-8') as f:
-        data = json.load(f)
-    return {m['id']: m for m in data['models']}
-
-
-def safe_model_name(model_id: str) -> str:
-    """모델 ID → 파일명 안전 문자열 (run-pinchbench.sh와 동일 로직)"""
-    return model_id.replace('/', '__').replace(':', '__')
-
-
-def find_latest_result(raw_dir: str, model_id: str) -> dict | None:
-    """특정 모델의 가장 최근 벤치마크 결과 파일을 찾아 파싱"""
-    safe = safe_model_name(model_id)
-    pattern = os.path.join(raw_dir, f'{safe}_*.json')
-    files = sorted(glob.glob(pattern), reverse=True)  # 최신 파일이 먼저
-
-    for fpath in files:
-        try:
-            with open(fpath, encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            continue
-    return None
-
-
-def parse_pinchbench(raw: dict) -> dict | None:
-    """PinchBench 원본 JSON → 정규화된 점수 객체
-
-    PinchBench 출력 형식이 확정되면 이 함수를 조정.
-    현재는 여러 가능한 형식을 탐색한다.
-    """
-    if raw is None:
-        return None
-
-    # 형식 A: summary 필드가 있는 경우
-    s = raw.get('summary', {})
-    if s:
-        score = s.get('best_score') or s.get('score')
-        if score is not None:
-            # 퍼센트(0-100) vs 비율(0-1) 자동 감지
-            if isinstance(score, (int, float)) and score <= 1.0:
-                score *= 100
-            return {
-                'score': round(float(score), 1),
-                'completed': int(s.get('tasks_completed', s.get('completed', 0))),
-                'total': int(s.get('tasks_total', s.get('total', 23))),
-            }
-
-    # 형식 B: tasks 배열에서 직접 계산
-    tasks = raw.get('tasks', [])
-    if tasks:
-        passed = sum(1 for t in tasks if t.get('passed') or t.get('score', 0) > 0.5)
-        scores = [t.get('score', 0) for t in tasks]
-        avg = sum(scores) / len(scores) if scores else 0
-        if avg <= 1.0:
-            avg *= 100
-        return {
-            'score': round(avg, 1),
-            'completed': passed,
-            'total': len(tasks),
-        }
-
-    # 형식 C: 플랫 구조
-    score = raw.get('score') or raw.get('best_score') or raw.get('overall_score')
-    if score is not None:
-        if isinstance(score, (int, float)) and score <= 1.0:
-            score *= 100
-        return {
-            'score': round(float(score), 1),
-            'completed': int(raw.get('completed', 0)),
-            'total': int(raw.get('total', 23)),
-        }
-
-    return None
-
-
-def parse_korean(raw: dict) -> dict | None:
-    """ClawBench-KO 원본 JSON → 정규화된 점수 객체
-
-    claw-bench-ko runner가 생성하는 results.json 형식:
-    - overall_best_score / overall_average_score (0.0~1.0)
-    - tasks[].best_score, tasks[].average_score
-    """
-    if raw is None:
-        return None
-
-    best = raw.get('overall_best_score')
-    avg = raw.get('overall_average_score')
-    if best is None and avg is None:
-        return None
-
-    # 0.0~1.0 → 0~100 변환
-    if best is not None and best <= 1.0:
-        best *= 100
-    if avg is not None and avg <= 1.0:
-        avg *= 100
-
-    tasks = raw.get('tasks', [])
-    total = len(tasks)
-    completed = sum(1 for t in tasks if t.get('best_score', 0) > 0)
-
-    # 카테고리별 점수
-    categories = {}
-    for t in tasks:
-        cat = t.get('category', 'unknown')
-        if cat not in categories:
-            categories[cat] = []
-        categories[cat].append(t.get('best_score', 0) * 100)
-
-    cat_scores = {}
-    for cat, scores in categories.items():
-        cat_scores[cat] = round(sum(scores) / len(scores), 1) if scores else 0
-
+def resolve_paths(repo_root: Path):
     return {
-        'best_score': round(float(best), 1) if best is not None else None,
-        'average_score': round(float(avg), 1) if avg is not None else None,
-        'completed': completed,
-        'total': total,
-        'categories': cat_scores,
+        "raw_pb": repo_root / "results" / "raw" / "pinchbench",
+        "raw_ko": repo_root / "results" / "raw" / "korean",
+        "models": repo_root / "server" / "config" / "models.json",
+        "output": repo_root / "results" / "normalized" / "leaderboard.json",
     }
 
 
-def parse_agentbench(raw: dict) -> dict | None:
-    """AgentBench 원본 JSON → 정규화된 점수 객체"""
-    if raw is None:
-        return None
+# ── 모델 ID 매칭 ──
 
-    s = raw.get('summary', raw)
-    score = s.get('overall_score') or s.get('score')
+def strip_provider_prefix(raw_model: str) -> str:
+    """raw JSON의 model 필드에서 provider 접두어 제거 → models.json ID와 매칭"""
+    for prefix in PROVIDER_PREFIXES:
+        if raw_model.startswith(prefix):
+            return raw_model[len(prefix):]
+    return raw_model
+
+
+def load_registry(path: Path) -> dict:
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    return {m["id"]: m for m in data["models"]}
+
+
+# ── 결과 파일 수집 ──
+
+def collect_result_files(raw_dir: Path) -> list[Path]:
+    """디렉토리 내 모든 결과 JSON 파일을 수집
+
+    두 가지 패턴 처리:
+      1. 플랫 파일: {dir}/{name}_{ts}.json
+      2. 서브디렉토리: {dir}/{name}_{ts}/results.json
+    """
+    if not raw_dir.exists():
+        return []
+
+    files = []
+    for item in raw_dir.iterdir():
+        if item.is_file() and item.suffix == ".json" and item.name != ".gitkeep":
+            files.append(item)
+        elif item.is_dir():
+            rj = item / "results.json"
+            if rj.exists():
+                files.append(rj)
+    return files
+
+
+# ── PinchBench 파싱 ──
+
+def parse_pinchbench_run(raw: dict) -> dict | None:
+    """단일 PinchBench 실행 결과 → 정규화된 점수
+
+    반환: {"score": 0-100, "completed": int, "total": int, "date": str,
+           "avg_seconds_per_task": float, "model_raw": str}
+    """
+    # overall_score (0-1 비율)
+    score = None
+    if "overall_score" in raw and isinstance(raw["overall_score"], (int, float)):
+        score = raw["overall_score"]
+    elif "summary" in raw:
+        s = raw["summary"]
+        score = s.get("best_score") or s.get("score")
+
     if score is None:
-        return None
+        # tasks 배열에서 직접 계산
+        tasks = raw.get("tasks", [])
+        if not tasks:
+            return None
+        means = [t.get("grading", {}).get("mean", t.get("score", 0)) for t in tasks]
+        score = sum(means) / len(means) if means else 0
 
+    # 0-1 → 0-100 변환
     if isinstance(score, (int, float)) and score <= 1.0:
         score *= 100
 
+    # completed/total
+    s = raw.get("summary", {})
+    completed = int(s.get("tasks_completed", s.get("completed", 0)))
+    total = int(s.get("tasks_total", s.get("total", 23)))
+    if completed == 0:
+        tasks = raw.get("tasks", [])
+        completed = sum(1 for t in tasks if t.get("passed") or t.get("grading", {}).get("mean", 0) > 0.5)
+        total = total or len(tasks) or 23
+
+    # 평균 실행 시간
+    tasks = raw.get("tasks", [])
+    exec_times = [t["execution_time"] for t in tasks if "execution_time" in t]
+    avg_sec = sum(exec_times) / len(exec_times) if exec_times else 0
+
+    # 타임스탬프 → 날짜
+    ts = raw.get("timestamp", 0)
+    date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d") if ts else ""
+
     return {
-        'score': round(float(score), 1),
-        'task_completion': float(s.get('task_completion', 0)),
-        'tool_accuracy': float(s.get('tool_accuracy', 0)),
-        'efficiency': float(s.get('efficiency', 0)),
-        'quality': float(s.get('quality', 0)),
+        "score": round(float(score), 1),
+        "completed": completed,
+        "total": total,
+        "date": date_str,
+        "avg_seconds_per_task": round(avg_sec, 1),
+        "model_raw": raw.get("model", ""),
     }
 
 
-def build_leaderboard(registry: dict) -> dict:
-    """모델 레지스트리 + 원본 결과 → leaderboard.json"""
+# ── ClawBench-KO 파싱 ──
+
+def parse_korean_run(raw: dict) -> dict | None:
+    """단일 ClawBench-KO 실행 결과 → 정규화된 점수
+
+    runner.py 출력 형식:
+      overall_score: {"mean": 0-1, "total_earned": float, "total_possible": float}
+      tasks[].grading.mean: 0-1
+      tasks[].frontmatter.category: "data_processing" | "doc_generation" | "korean_system"
+    """
+    os_field = raw.get("overall_score")
+    if isinstance(os_field, dict):
+        score = os_field.get("mean", 0)
+    elif isinstance(os_field, (int, float)):
+        score = os_field
+    else:
+        return None
+
+    # 0-1 → 0-100
+    if score <= 1.0:
+        score *= 100
+
+    tasks = raw.get("tasks", [])
+    total_tasks = len(set(t.get("task_id") for t in tasks))
+    completed = 0
+    # 카테고리별 점수 집계 (task_id 기준 중복 제거: 같은 task_id면 첫 번째만)
+    seen_tasks = set()
+    cat_scores = {}  # category → [scores]
+    for t in tasks:
+        tid = t.get("task_id")
+        if tid in seen_tasks:
+            continue
+        seen_tasks.add(tid)
+
+        mean = t.get("grading", {}).get("mean", 0)
+        if mean > 0:
+            completed += 1
+
+        cat = t.get("frontmatter", {}).get("category", "unknown")
+        if cat not in cat_scores:
+            cat_scores[cat] = []
+        cat_scores[cat].append(mean * 100)  # 0-1 → 0-100
+
+    categories = {}
+    for cat, scores in cat_scores.items():
+        categories[cat] = round(sum(scores) / len(scores), 1) if scores else 0
+
+    # 평균 실행 시간
+    exec_times = [t["execution_time"] for t in tasks if "execution_time" in t]
+    avg_sec = sum(exec_times) / len(exec_times) if exec_times else 0
+
+    ts = raw.get("timestamp", 0)
+    date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d") if ts else ""
+
+    return {
+        "score": round(float(score), 1),
+        "completed": completed,
+        "total": total_tasks or len(tasks),
+        "date": date_str,
+        "categories": categories,
+        "avg_seconds_per_task": round(avg_sec, 1),
+        "model_raw": raw.get("model", ""),
+    }
+
+
+# ── 다중 실행 집계 ──
+
+def aggregate_runs(runs: list[dict]) -> dict:
+    """여러 실행 결과를 집계: best, average, std
+
+    runs: parse_*_run() 반환값 리스트
+    """
+    scores = [r["score"] for r in runs]
+    n = len(scores)
+
+    best = max(scores)
+    avg = sum(scores) / n
+    if n >= 2:
+        variance = sum((s - avg) ** 2 for s in scores) / (n - 1)
+        std = math.sqrt(variance)
+    else:
+        std = 0.0
+
+    run_records = []
+    for r in sorted(runs, key=lambda x: x["date"]):
+        run_records.append({
+            "score": r["score"],
+            "completed": r["completed"],
+            "total": r["total"],
+            "date": r["date"],
+        })
+
+    # 카테고리 (ClawBench-KO): best run의 카테고리 사용
+    best_run = max(runs, key=lambda r: r["score"])
+    categories = best_run.get("categories")
+
+    # 평균 실행 시간 (전체 실행의 평균)
+    avg_secs = [r["avg_seconds_per_task"] for r in runs if r.get("avg_seconds_per_task")]
+    avg_sec_per_task = sum(avg_secs) / len(avg_secs) if avg_secs else 0
+
+    result = {
+        "best": round(best, 1),
+        "average": round(avg, 1),
+        "std": round(std, 2),
+        "runs": run_records,
+    }
+    if categories:
+        result["categories"] = categories
+    return result, round(avg_sec_per_task, 1)
+
+
+# ── 비용 추정 ──
+
+def estimate_cost(info: dict, num_tasks: int = 23) -> float:
+    """모델 가격 정보로 1회 실행 비용 추정
+
+    가정: 태스크당 평균 2000 input tokens + 3000 output tokens
+    """
+    if info.get("free", False):
+        return 0.0
+    inp = info.get("input_price_per_1m", 0)
+    out = info.get("output_price_per_1m", 0)
+    est_in = num_tasks * 2000
+    est_out = num_tasks * 3000
+    return round((est_in / 1e6 * inp) + (est_out / 1e6 * out), 2)
+
+
+# ── 메인 빌드 ──
+
+def build_leaderboard(registry: dict, paths: dict) -> dict:
+    # 결과 파일 수집
+    pb_files = collect_result_files(paths["raw_pb"])
+    ko_files = collect_result_files(paths["raw_ko"])
+
+    print(f"PinchBench 결과 파일: {len(pb_files)}개")
+    print(f"ClawBench-KO 결과 파일: {len(ko_files)}개")
+    print()
+
+    # 모델별 실행 결과 그룹핑 (model_id → [parsed_run, ...])
+    pb_runs = {}  # model_id → [run_dict]
+    ko_runs = {}
+
+    for fpath in pb_files:
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                raw = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  SKIP {fpath.name}: {e}")
+            continue
+
+        parsed = parse_pinchbench_run(raw)
+        if not parsed:
+            print(f"  SKIP {fpath.name}: 파싱 실패")
+            continue
+
+        model_id = strip_provider_prefix(parsed["model_raw"])
+        if model_id not in registry:
+            print(f"  WARN {fpath.name}: 모델 '{model_id}' 레지스트리에 없음")
+            continue
+
+        pb_runs.setdefault(model_id, []).append(parsed)
+
+    for fpath in ko_files:
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                raw = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  SKIP {fpath.name}: {e}")
+            continue
+
+        parsed = parse_korean_run(raw)
+        if not parsed:
+            print(f"  SKIP {fpath.name}: 파싱 실패")
+            continue
+
+        model_id = strip_provider_prefix(parsed["model_raw"])
+        if model_id not in registry:
+            print(f"  WARN {fpath.name}: 모델 '{model_id}' 레지스트리에 없음")
+            continue
+
+        ko_runs.setdefault(model_id, []).append(parsed)
+
+    # 리더보드 모델 엔트리 빌드
     models = []
-    latest_update = None
+    total_run_count = 0
+    latest_ts = None
 
     for model_id, info in registry.items():
-        # PinchBench 결과 탐색
-        pb_raw = find_latest_result(RAW_PINCHBENCH, model_id)
-        pb = parse_pinchbench(pb_raw)
+        pb_list = pb_runs.get(model_id, [])
+        ko_list = ko_runs.get(model_id, [])
 
-        # AgentBench 결과 탐색
-        ab_raw = find_latest_result(RAW_AGENTBENCH, model_id)
-        ab = parse_agentbench(ab_raw)
-
-        # ClawBench-KO 결과 탐색
-        ko_raw = find_latest_result(RAW_KOREAN, model_id)
-        ko = parse_korean(ko_raw)
-
-        # 타임스탬프 추적
-        for raw in [pb_raw, ab_raw, ko_raw]:
-            if raw and 'timestamp' in raw:
-                ts = raw['timestamp']
-                if latest_update is None or ts > latest_update:
-                    latest_update = ts
+        # 결과가 하나도 없는 모델은 건너뜀
+        if not pb_list and not ko_list:
+            continue
 
         entry = {
-            'id': model_id,
-            'name': info['name'],
-            'provider': info.get('provider', ''),
-            'free': info.get('free', False),
-            'cost_per_run_usd': estimate_run_cost(info, pb),
-            'scores': {
-                'pinchbench': pb,
-                'agentbench': ab,
-                'korean': ko,
-            },
+            "id": model_id,
+            "name": info["name"],
+            "provider": info.get("provider", ""),
+            "provider_label": info.get("provider_label", info.get("provider", "")),
+            "free": info.get("free", False),
+            "cost_per_run_usd": estimate_cost(info),
+            "input_price_per_1m": info.get("input_price_per_1m", 0),
+            "output_price_per_1m": info.get("output_price_per_1m", 0),
+            "params_b": info.get("params_b", 0),
+            "avg_seconds_per_task": 0,
+            "scores": {},
         }
+
+        # PinchBench 집계
+        avg_secs = []
+        if pb_list:
+            agg, avg_sec = aggregate_runs(pb_list)
+            entry["scores"]["pinchbench"] = agg
+            total_run_count += len(pb_list)
+            if avg_sec > 0:
+                avg_secs.append(avg_sec)
+
+        # ClawBench-KO 집계
+        if ko_list:
+            agg, avg_sec = aggregate_runs(ko_list)
+            entry["scores"]["clawbench_ko"] = agg
+            total_run_count += len(ko_list)
+            if avg_sec > 0:
+                avg_secs.append(avg_sec)
+
+        # 전체 평균 태스크 시간
+        if avg_secs:
+            entry["avg_seconds_per_task"] = round(sum(avg_secs) / len(avg_secs), 0)
+
+        # 복합 점수 (PinchBench 50% + ClawBench-KO 50%)
+        pb_best = entry["scores"].get("pinchbench", {}).get("best", 0)
+        ko_best = entry["scores"].get("clawbench_ko", {}).get("best", 0)
+        pb_avg = entry["scores"].get("pinchbench", {}).get("average", 0)
+        ko_avg = entry["scores"].get("clawbench_ko", {}).get("average", 0)
+
+        if pb_best > 0 and ko_best > 0:
+            entry["scores"]["composite"] = {
+                "best": round((pb_best + ko_best) / 2, 2),
+                "average": round((pb_avg + ko_avg) / 2, 2),
+            }
+        elif pb_best > 0:
+            entry["scores"]["composite"] = {"best": pb_best, "average": pb_avg}
+        elif ko_best > 0:
+            entry["scores"]["composite"] = {"best": ko_best, "average": ko_avg}
+
         models.append(entry)
 
-    now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    runs_with_data = sum(1 for m in models if m['scores']['pinchbench'] is not None)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return {
-        'meta': {
-            'last_updated': latest_update or now,
-            'total_runs': runs_with_data,
-            'generated_at': now,
-            'note': '' if runs_with_data > 0 else '샘플 데이터 — 벤치마크 실행 전 UI 프리뷰용. 실제 측정값이 아님',
+        "meta": {
+            "last_updated": now,
+            "total_runs": total_run_count,
+            "generated_at": now,
         },
-        'models': models,
+        "models": models,
     }
-
-
-def estimate_run_cost(info: dict, pb: dict | None) -> float:
-    """모델 정보 + PinchBench 결과에서 실행 비용 추정
-
-    실제 비용이 결과에 포함되어 있으면 그 값을 사용.
-    없으면 models.json의 가격 정보로 대략 추정 (23 태스크, 평균 50K tokens 가정).
-    """
-    if info.get('free', False):
-        return 0.0
-
-    # 대략적 추정: PinchBench 23태스크 × 평균 2K input + 3K output tokens/태스크
-    input_per_1m = info.get('input_price_per_1m', 0)
-    output_per_1m = info.get('output_price_per_1m', 0)
-    est_input_tokens = 23 * 2000
-    est_output_tokens = 23 * 3000
-    cost = (est_input_tokens / 1_000_000 * input_per_1m) + (est_output_tokens / 1_000_000 * output_per_1m)
-    return round(cost, 2)
 
 
 def main():
-    print('=== normalize.py: 결과 정규화 ===')
-    print(f'원본 경로: {RAW_PINCHBENCH}')
-    print(f'모델 레지스트리: {MODELS_FILE}')
-    print(f'출력: {OUTPUT_FILE}')
+    parser = argparse.ArgumentParser(description="벤치마크 결과 → leaderboard.json")
+    parser.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT),
+                        help="저장소 루트 경로")
+    args = parser.parse_args()
+
+    repo_root = Path(args.repo_root).resolve()
+    paths = resolve_paths(repo_root)
+
+    print("=== normalize.py: 결과 정규화 ===")
+    print(f"저장소: {repo_root}")
+    print(f"모델 레지스트리: {paths['models']}")
     print()
 
-    registry = load_models_registry()
-    print(f'등록 모델: {len(registry)}개')
+    registry = load_registry(paths["models"])
+    print(f"등록 모델: {len(registry)}개")
 
-    # 원본 결과 파일 수 확인
-    pb_files = glob.glob(os.path.join(RAW_PINCHBENCH, '*.json'))
-    ab_files = glob.glob(os.path.join(RAW_AGENTBENCH, '*.json'))
-    ko_files = glob.glob(os.path.join(RAW_KOREAN, '*.json'))
-    print(f'PinchBench 원본: {len(pb_files)}개')
-    print(f'AgentBench 원본: {len(ab_files)}개')
-    print(f'ClawBench-KO 원본: {len(ko_files)}개')
-    print()
+    leaderboard = build_leaderboard(registry, paths)
 
-    leaderboard = build_leaderboard(registry)
-
-    # 결과 요약
-    models = leaderboard['models']
-    pb_count = sum(1 for m in models if m['scores']['pinchbench'])
-    ab_count = sum(1 for m in models if m['scores']['agentbench'])
-    ko_count = sum(1 for m in models if m['scores']['korean'])
-    print(f'PinchBench 측정 완료: {pb_count}/{len(models)}')
-    print(f'AgentBench 측정 완료: {ab_count}/{len(models)}')
-    print(f'ClawBench-KO 측정 완료: {ko_count}/{len(models)}')
+    models = leaderboard["models"]
+    pb_count = sum(1 for m in models if "pinchbench" in m["scores"])
+    ko_count = sum(1 for m in models if "clawbench_ko" in m["scores"])
+    print(f"\nPinchBench: {pb_count}개 모델")
+    print(f"ClawBench-KO: {ko_count}개 모델")
+    print(f"총 실행 횟수: {leaderboard['meta']['total_runs']}")
 
     if pb_count > 0:
-        scored = [m for m in models if m['scores']['pinchbench']]
-        scored.sort(key=lambda m: m['scores']['pinchbench']['score'], reverse=True)
-        print()
-        print('--- PinchBench 순위 ---')
+        scored = sorted(
+            [m for m in models if "pinchbench" in m["scores"]],
+            key=lambda m: m["scores"]["pinchbench"]["best"],
+            reverse=True,
+        )
+        print("\n--- PinchBench 순위 ---")
         for i, m in enumerate(scored, 1):
-            s = m['scores']['pinchbench']
-            print(f'  {i}. {m["name"]}: {s["score"]}점 ({s["completed"]}/{s["total"]} 태스크)')
+            s = m["scores"]["pinchbench"]
+            runs_n = len(s["runs"])
+            print(f"  {i}. {m['name']}: best={s['best']}% avg={s['average']}% "
+                  f"std=\u00b1{s['std']} ({runs_n}회)")
 
     # 저장
-    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+    paths["output"].parent.mkdir(parents=True, exist_ok=True)
+    with open(paths["output"], "w", encoding="utf-8") as f:
         json.dump(leaderboard, f, ensure_ascii=False, indent=2)
 
-    print()
-    print(f'저장 완료: {OUTPUT_FILE}')
-    print(f'크기: {os.path.getsize(OUTPUT_FILE):,} bytes')
+    size = paths["output"].stat().st_size
+    print(f"\n저장: {paths['output']} ({size:,} bytes)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
