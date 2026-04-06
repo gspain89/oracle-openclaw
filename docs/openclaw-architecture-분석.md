@@ -35,7 +35,8 @@
 │  │  ~/.openclaw/agents/main/agent/auth-profiles.json     │  │
 │  │  ├─ openrouter:default  (sk-or-v1-...)                │  │
 │  │  ├─ modelstudio:default (sk-...)                      │  │
-│  │  └─ azure-openai:default (DRL0Hth...)                 │  │
+│  │  ├─ azure-openai:default (DRL0Hth...)                 │  │
+│  │  └─ upstage:default     (up_kbR...)                   │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -164,14 +165,17 @@ openclaw.json → models.providers
 │   └── nemotron-3-super-120b-a12b:free, auto, arcee-ai/..., qwen/...
 ├── modelstudio    (api: openai-completions)
 │   └── qwen3.5-plus, glm-5, glm-4.7, kimi-k2.5, MiniMax-M2.5, ...
-└── azure-openai   (api: azure-openai-responses)
-    └── gpt-5.2-chat
+├── azure-openai   (api: azure-openai-responses)
+│   └── gpt-5.2-chat
+└── upstage        (api: openai-completions, baseUrl: api.upstage.ai/v1)
+    └── solar-pro3 (reasoning: true, compat.supportsReasoningEffort: true)
 ```
 
 **모델 레퍼런스 형식**: `{provider}/{model-id}`
 - `openrouter/nvidia/nemotron-3-super-120b-a12b:free`
 - `modelstudio/glm-5`
 - `azure-openai/gpt-5.2-chat`
+- `upstage/solar-pro3`
 
 ### 4.2 모델이 models list에 표시되려면
 
@@ -182,6 +186,32 @@ openclaw.json → models.providers
 
 둘 중 하나라도 빠지면 `openclaw models list`에 나타나지 않는다.
 
+### 4.2a 모델 Alias와 Params
+
+같은 API 모델을 다른 파라미터로 호출해야 할 때 `agents.defaults.models`에서 alias + params를 사용한다:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "models": {
+        "upstage/solar-pro3": { "params": { "reasoning_effort": "minimal" } },
+        "upstage/solar-pro3-thinking": {
+          "alias": "upstage/solar-pro3",
+          "params": { "reasoning_effort": "high" }
+        }
+      }
+    }
+  }
+}
+```
+
+- `alias`: 실제 API 호출 시 resolve되는 대상 모델
+- `params`: API 요청 body에 병합되는 추가 파라미터
+- `openclaw models list`에서 `configured,alias:upstage/solar-pro3`로 표시됨
+
+이 기능으로 동일 모델의 reasoning/non-reasoning variant를 리더보드에 별도 항목으로 운영한다.
+
 ### 4.3 인증 (Auth Profiles)
 
 API 키는 `auth-profiles.json`에 provider별로 저장된다:
@@ -191,7 +221,8 @@ API 키는 `auth-profiles.json`에 provider별로 저장된다:
   "profiles": {
     "openrouter:default":   { "type": "api_key", "provider": "openrouter",   "key": "sk-or-..." },
     "modelstudio:default":  { "type": "api_key", "provider": "modelstudio",  "key": "sk-..." },
-    "azure-openai:default": { "type": "api_key", "provider": "azure-openai", "key": "DRL0..." }
+    "azure-openai:default": { "type": "api_key", "provider": "azure-openai", "key": "DRL0..." },
+    "upstage:default":      { "type": "api_key", "provider": "upstage",      "key": "up_..." }
   }
 }
 ```
@@ -289,7 +320,7 @@ Gateway (ws://127.0.0.1:18789)
     │       (api-version 자동 추가, api-key 헤더 자동 처리)
     │
     ▼
-LLM Provider (OpenRouter / DashScope / Azure)
+LLM Provider (OpenRouter / DashScope / Azure / Upstage)
     │
     ▼
 응답 스트리밍 → 세션 기록 (.jsonl) → 사용자에게 반환
