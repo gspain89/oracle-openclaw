@@ -27,7 +27,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = SCRIPT_DIR.parent.parent
 
-PROVIDER_PREFIXES = ("openrouter/", "modelstudio/", "azure-openai/")
+PROVIDER_PREFIXES = ("openrouter/", "modelstudio/", "azure-openai/", "upstage/")
 
 
 def resolve_paths(repo_root: Path):

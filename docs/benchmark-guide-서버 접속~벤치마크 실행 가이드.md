@@ -33,6 +33,8 @@ openclaw models list
 | `modelstudio/glm-5` | DashScope (Z.AI) | - | 400B |
 | `modelstudio/glm-5.1` | DashScope (Z.AI) | - | 600B |
 | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | OpenRouter | 무료 | 120B, TTFT 변동 주의 |
+| `upstage/solar-pro3` | Upstage | - | 102B MoE (12B active), reasoning_effort: minimal |
+| `upstage/solar-pro3-thinking` | Upstage | - | 위와 동일 모델, reasoning_effort: high (alias) |
 
 Judge 모델:
 
@@ -89,6 +91,88 @@ openclaw agents add test-agent --model modelstudio/새모델-id --workspace /tmp
 openclaw agent --agent test-agent --session-id test1 --timeout 30 --message "Say hello"
 openclaw agents delete test-agent --force
 ```
+
+### Upstage 등 비-DashScope 프로바이더 등록
+
+DashScope 외 프로바이더(Upstage, OpenRouter 등)는 별도 프로바이더를 생성해야 한다:
+
+```bash
+python3 << 'PYEOF'
+import json
+
+PROVIDER_NAME = "upstage"                            # 프로바이더 ID
+BASE_URL = "https://api.upstage.ai/v1"               # API 엔드포인트
+MODEL_ID = "solar-pro3"                              # API 모델명
+API_KEY = "up_..."                                   # API 키
+CONTEXT_WINDOW = 131072
+
+with open("/home/ubuntu/.openclaw/openclaw.json") as f:
+    d = json.load(f)
+
+# 프로바이더 생성
+d["models"]["providers"][PROVIDER_NAME] = {
+    "baseUrl": BASE_URL,
+    "api": "openai-completions",
+    "models": [{
+        "id": MODEL_ID,
+        "name": MODEL_ID,
+        "reasoning": True,
+        "input": ["text"],
+        "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+        "contextWindow": CONTEXT_WINDOW,
+        "maxTokens": 65536,
+        "compat": {"supportsReasoningEffort": True, "thinkingFormat": "openai"}
+    }]
+}
+
+# 허용 모델 등록
+d["agents"]["defaults"]["models"][f"{PROVIDER_NAME}/{MODEL_ID}"] = {}
+
+with open("/home/ubuntu/.openclaw/openclaw.json", "w") as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+
+print(f"OK - {PROVIDER_NAME}/{MODEL_ID} 프로바이더 등록 완료")
+PYEOF
+
+# API 키 등록 (auth-profiles.json)
+python3 << 'PYEOF'
+import json
+with open("/home/ubuntu/.openclaw/agents/main/agent/auth-profiles.json") as f:
+    auth = json.load(f)
+auth["profiles"]["upstage:default"] = {
+    "type": "api_key", "provider": "upstage", "key": "up_..."
+}
+with open("/home/ubuntu/.openclaw/agents/main/agent/auth-profiles.json", "w") as f:
+    json.dump(auth, f, indent=2, ensure_ascii=False)
+print("OK - API 키 등록 완료")
+PYEOF
+```
+
+### Variant 모델 등록 (같은 API 모델, 다른 파라미터)
+
+같은 모델을 다른 설정(예: reasoning_effort)으로 측정하려면 openclaw alias를 사용한다:
+
+```bash
+python3 << 'PYEOF'
+import json
+with open("/home/ubuntu/.openclaw/openclaw.json") as f:
+    d = json.load(f)
+
+# alias 등록: solar-pro3-thinking → solar-pro3 (reasoning_effort: high)
+d["agents"]["defaults"]["models"]["upstage/solar-pro3-thinking"] = {
+    "alias": "upstage/solar-pro3",
+    "params": {"reasoning_effort": "high"}
+}
+
+with open("/home/ubuntu/.openclaw/openclaw.json", "w") as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+print("OK - alias 등록 완료")
+PYEOF
+```
+
+확인: `openclaw models list | grep thinking` → `configured,alias:upstage/solar-pro3` 표시.
+
+alias 모델도 `models.json`에 별도 ID로 등록해야 리더보드에 독립 항목으로 표시된다.
 
 ### models.json에도 등록
 
@@ -389,6 +473,16 @@ bash server/scripts/run-all.sh qwen3.5-27b --runs 3 --dry-run
 
 run-all.sh는 models.json의 모델 ID를 받는다 (프로바이더 접두어 불필요).
 실행 완료 후 `normalize.py`가 자동 호출되어 `results/normalized/leaderboard.json`이 갱신된다.
+
+```bash
+# Upstage Solar Pro 3 — 기본 모드 (reasoning_effort: minimal)
+bash server/scripts/run-all.sh solar-pro3 --runs 3
+
+# Upstage Solar Pro 3 — Thinking 모드 (reasoning_effort: high)
+bash server/scripts/run-all.sh solar-pro3-thinking --runs 3
+```
+
+두 variant는 리더보드에 별도 항목으로 표시된다.
 
 ### 결과 배포 (리더보드 사이트 반영)
 

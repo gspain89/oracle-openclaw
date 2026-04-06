@@ -1,8 +1,9 @@
 {
   "meta": {
-    "last_updated": "2026-04-05T04:55:32Z",
-    "total_runs": 35,
-    "generated_at": "2026-04-05T04:55:32Z"
+    "last_updated": "2026-04-06T08:03:38Z",
+    "total_runs": 47,
+    "generated_at": "2026-04-06T08:03:38Z",
+    "_new_from_raw": 9
   },
   "models": [
     {
@@ -471,6 +472,152 @@
         "composite": {
           "best": 51.5,
           "average": 49.0
+        }
+      }
+    },
+    {
+      "id": "solar-pro3",
+      "name": "Solar Pro 3",
+      "provider": "upstage",
+      "provider_label": "Upstage",
+      "free": false,
+      "cost_per_run_usd": 0.05,
+      "input_price_per_1m": 0.15,
+      "output_price_per_1m": 0.6,
+      "params_b": 102,
+      "avg_seconds_per_task": 83.0,
+      "scores": {
+        "pinchbench": {
+          "best": 53.6,
+          "average": 52.9,
+          "std": 0.59,
+          "runs": [
+            {
+              "score": 52.7,
+              "completed": 13,
+              "total": 24,
+              "date": "2025-04-03"
+            },
+            {
+              "score": 52.5,
+              "completed": 14,
+              "total": 24,
+              "date": "2025-04-04"
+            },
+            {
+              "score": 53.6,
+              "completed": 14,
+              "total": 24,
+              "date": "2025-04-05"
+            }
+          ]
+        },
+        "clawbench_ko": {
+          "best": 61.0,
+          "average": 58.1,
+          "std": 2.72,
+          "runs": [
+            {
+              "score": 57.8,
+              "completed": 10,
+              "total": 10,
+              "date": "2025-04-03"
+            },
+            {
+              "score": 55.6,
+              "completed": 10,
+              "total": 10,
+              "date": "2025-04-04"
+            },
+            {
+              "score": 61.0,
+              "completed": 10,
+              "total": 10,
+              "date": "2025-04-05"
+            }
+          ],
+          "categories": {
+            "doc_generation": 56.9,
+            "data_processing": 66.3,
+            "korean_system": 60.1
+          }
+        },
+        "composite": {
+          "best": 57.3,
+          "average": 55.5
+        }
+      }
+    },
+    {
+      "id": "solar-pro3-thinking",
+      "name": "Solar Pro 3 (Thinking)",
+      "provider": "upstage",
+      "provider_label": "Upstage",
+      "free": false,
+      "cost_per_run_usd": 0.05,
+      "input_price_per_1m": 0.15,
+      "output_price_per_1m": 0.6,
+      "params_b": 102,
+      "avg_seconds_per_task": 76.0,
+      "scores": {
+        "pinchbench": {
+          "best": 72.1,
+          "average": 70.8,
+          "std": 2.17,
+          "runs": [
+            {
+              "score": 68.3,
+              "completed": 24,
+              "total": 24,
+              "date": "2025-04-03"
+            },
+            {
+              "score": 72.1,
+              "completed": 24,
+              "total": 24,
+              "date": "2025-04-04"
+            },
+            {
+              "score": 72.0,
+              "completed": 24,
+              "total": 24,
+              "date": "2025-04-05"
+            }
+          ]
+        },
+        "clawbench_ko": {
+          "best": 77.5,
+          "average": 75.5,
+          "std": 2.98,
+          "runs": [
+            {
+              "score": 77.0,
+              "completed": 10,
+              "total": 10,
+              "date": "2025-04-03"
+            },
+            {
+              "score": 77.5,
+              "completed": 10,
+              "total": 10,
+              "date": "2025-04-04"
+            },
+            {
+              "score": 72.1,
+              "completed": 10,
+              "total": 10,
+              "date": "2025-04-05"
+            }
+          ],
+          "categories": {
+            "doc_generation": 82.1,
+            "data_processing": 75.5,
+            "korean_system": 75.4
+          }
+        },
+        "composite": {
+          "best": 74.8,
+          "average": 73.15
         }
       }
     }

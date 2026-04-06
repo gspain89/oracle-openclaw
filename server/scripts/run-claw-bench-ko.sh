@@ -39,6 +39,7 @@ for m in data['models']:
   case "$PROVIDER" in
     openrouter) OPENCLAW_MODEL_ID="openrouter/$MODEL_ID" ;;
     dashscope)  OPENCLAW_MODEL_ID="modelstudio/$MODEL_ID" ;;
+    upstage)    OPENCLAW_MODEL_ID="upstage/$MODEL_ID" ;;
   esac
 fi
 

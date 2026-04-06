@@ -1,8 +1,8 @@
 # OpenClaw 벤치마크 자동화 + 리더보드 시스템
 
 > 작성일: 2026-04-03
-> 최종 수정: 2026-04-05
-> 상태: Phase 0~2 완료, Phase 3 파이프라인 구축 완료 (실데이터 실행 전)
+> 최종 수정: 2026-04-06
+> 상태: Phase 0~3 완료. Upstage Solar Pro 3 (variant 포함) 추가, 모델 variant 지원 구현
 
 ## 1. 배경 및 목표
 
@@ -50,7 +50,7 @@ oracle-openclaw/
 │   └── benchmark-system-plan.md          # ← 이 문서
 ├── server/                               # 서버에서 실행되는 코드
 │   ├── config/
-│   │   ├── models.json                   # 모델 레지스트리 (7개 모델, ID/가격/설정)
+│   │   ├── models.json                   # 모델 레지스트리 (9개 모델, ID/가격/설정)
 │   │   └── benchmarks.json               # 벤치마크 정의 (4종)
 │   ├── scripts/
 │   │   ├── setup-server.sh               # 1회 서버 초기화 (PinchBench clone 등)
@@ -99,6 +99,10 @@ oracle-openclaw/
 | Qwen 3.5 Plus | DashScope | X | 미측정 | Plus 변형, 응답 속도 빠름 |
 | GLM-5 | Z.AI / DashScope | X | 미측정 | **세계 최초 PinchBench 측정 목표** |
 | GLM-5.1 | Z.AI / DashScope | X | 미측정 | GLM-5 후속 |
+| **Solar Pro 3** | Upstage | X | 미측정 | 102B MoE (12B active). reasoning_effort: minimal |
+| **Solar Pro 3 (Thinking)** | Upstage | X | 미측정 | 위와 동일 API 모델. reasoning_effort: high (openclaw alias) |
+
+> Solar Pro 3는 같은 API 모델(`solar-pro3`)을 `reasoning_effort` 파라미터만 다르게 호출하는 2개 variant로 등록됨. openclaw의 model alias + params 기능으로 구현.
 
 ### 제외된 모델 (2026-04-04 확정)
 
@@ -113,7 +117,7 @@ oracle-openclaw/
 
 - [x] 디렉토리 구조 생성 (server/, results/, site/)
 - [x] .gitignore 확장 (node_modules, dist, results/raw)
-- [x] `models.json` 모델 레지스트리 (7개 모델)
+- [x] `models.json` 모델 레지스트리 (9개 모델)
 - [x] `benchmarks.json` 벤치마크 정의 (PinchBench, Korean, WildClaw)
 - [x] Astro 프로젝트 초기화 + 5개 페이지 구현
 - [x] GitHub Actions 워크플로우
@@ -195,7 +199,16 @@ OpenClaw gateway 데몬은 **30분 주기로 LLM을 호출**하는 하트비트 
 
 **산출물**: 세계 유일의 한국어 OpenClaw 벤치마크
 
-### Phase 3: 리더보드 사이트 + 자동화 파이프라인 — 파이프라인 완료
+### Phase 3: 리더보드 사이트 + 자동화 파이프라인 — 완료
+
+구현 완료 항목:
+- [x] `run-all.sh` 오케스트레이터 (단일/전체 모델, PB/KO/all, dry-run, free-only)
+- [x] `normalize.py` 증분 병합 (기존 데이터 보존, 새 raw만 갱신)
+- [x] `deploy-results.sh` → git push → GitHub Actions → Pages 자동 배포
+- [x] Astro 정적 사이트 5페이지 (리더보드, 비교, 비용, 히스토리, 한국어)
+- [x] Upstage Solar Pro 3 프로바이더 추가 (2026-04-06)
+- [x] 모델 variant 지원: openclaw alias + params로 같은 API 모델을 다른 설정으로 실행 가능
+- [x] 러너 스크립트 → 3개 프로바이더 지원 (dashscope→modelstudio, openrouter, upstage)
 
 - Astro 정적 사이트 5페이지 구현 (index, compare, cost, history, korean)
 - `normalize.py`: raw 결과 → leaderboard.json 다중 실행 집계 (best/average/std)
