@@ -57,10 +57,9 @@ echo ""
 echo "[3/4] 결과 디렉토리 생성..."
 
 mkdir -p "$RESULTS_RAW/pinchbench"
-mkdir -p "$RESULTS_RAW/agentbench"
 mkdir -p "$RESULTS_RAW/korean"
 mkdir -p "$REPO_ROOT/results/normalized"
-echo "  OK: $RESULTS_RAW/{pinchbench,agentbench,korean}"
+echo "  OK: $RESULTS_RAW/{pinchbench,korean}"
 
 # ── 4) OpenClaw 설정 확인 ──
 echo ""

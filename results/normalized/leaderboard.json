@@ -1,8 +1,8 @@
 {
   "meta": {
-    "last_updated": "2026-04-06T08:03:38Z",
+    "last_updated": "2026-04-06T08:14:52Z",
     "total_runs": 47,
-    "generated_at": "2026-04-06T08:03:38Z",
+    "generated_at": "2026-04-06T08:14:52Z",
     "_new_from_raw": 9
   },
   "models": [
@@ -12,7 +12,7 @@
       "provider": "dashscope",
       "provider_label": "DashScope (Alibaba)",
       "free": false,
-      "cost_per_run_usd": 0.35,
+      "cost_per_run_usd": 0.37,
       "input_price_per_1m": 1.1,
       "output_price_per_1m": 4.4,
       "params_b": 27,
@@ -79,7 +79,7 @@
       "provider": "dashscope",
       "provider_label": "DashScope (Alibaba)",
       "free": false,
-      "cost_per_run_usd": 0.17,
+      "cost_per_run_usd": 0.18,
       "input_price_per_1m": 0.8,
       "output_price_per_1m": 2.0,
       "params_b": 72,
@@ -146,7 +146,7 @@
       "provider": "dashscope",
       "provider_label": "DashScope (Z.AI)",
       "free": false,
-      "cost_per_run_usd": 0.97,
+      "cost_per_run_usd": 1.01,
       "input_price_per_1m": 3.0,
       "output_price_per_1m": 12.0,
       "params_b": 400,
@@ -213,7 +213,7 @@
       "provider": "dashscope",
       "provider_label": "DashScope (Z.AI)",
       "free": false,
-      "cost_per_run_usd": 0.97,
+      "cost_per_run_usd": 1.01,
       "input_price_per_1m": 3.0,
       "output_price_per_1m": 12.0,
       "params_b": 600,
@@ -561,10 +561,16 @@
       "avg_seconds_per_task": 76.0,
       "scores": {
         "pinchbench": {
-          "best": 72.1,
-          "average": 70.8,
-          "std": 2.17,
+          "best": 77.5,
+          "average": 73.2,
+          "std": 3.49,
           "runs": [
+            {
+              "score": 77.0,
+              "completed": 10,
+              "total": 24,
+              "date": "2025-04-03"
+            },
             {
               "score": 68.3,
               "completed": 24,
@@ -578,6 +584,18 @@
               "date": "2025-04-04"
             },
             {
+              "score": 77.5,
+              "completed": 10,
+              "total": 24,
+              "date": "2025-04-04"
+            },
+            {
+              "score": 72.1,
+              "completed": 10,
+              "total": 24,
+              "date": "2025-04-05"
+            },
+            {
               "score": 72.0,
               "completed": 24,
               "total": 24,
@@ -585,39 +603,9 @@
             }
           ]
         },
-        "clawbench_ko": {
-          "best": 77.5,
-          "average": 75.5,
-          "std": 2.98,
-          "runs": [
-            {
-              "score": 77.0,
-              "completed": 10,
-              "total": 10,
-              "date": "2025-04-03"
-            },
-            {
-              "score": 77.5,
-              "completed": 10,
-              "total": 10,
-              "date": "2025-04-04"
-            },
-            {
-              "score": 72.1,
-              "completed": 10,
-              "total": 10,
-              "date": "2025-04-05"
-            }
-          ],
-          "categories": {
-            "doc_generation": 82.1,
-            "data_processing": 75.5,
-            "korean_system": 75.4
-          }
-        },
         "composite": {
-          "best": 74.8,
-          "average": 73.15
+          "best": 77.5,
+          "average": 73.2
         }
       }
     }

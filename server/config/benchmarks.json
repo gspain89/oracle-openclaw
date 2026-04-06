@@ -3,14 +3,14 @@
     {
       "id": "pinchbench",
       "name": "PinchBench",
-      "task_count": 23,
+      "task_count": 24,
       "estimated_duration_min": { "min": 11, "max": 40 },
       "output_format": "json",
       "requires_docker": false,
       "disk_gb": 2,
       "script": "run-pinchbench.sh",
       "repo": "https://github.com/pinchbench/pinchbench",
-      "notes": "실제 소프트웨어 엔지니어링 태스크 23개. --model 플래그로 모델 전환"
+      "notes": "실제 소프트웨어 엔지니어링 태스크 24개 (task_00~task_22 + task_24). --model 플래그로 모델 전환"
     },
     {
       "id": "claw-bench-ko",

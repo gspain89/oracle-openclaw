@@ -109,11 +109,11 @@ def parse_pinchbench_run(raw: dict) -> dict | None:
     # completed/total
     s = raw.get("summary", {})
     completed = int(s.get("tasks_completed", s.get("completed", 0)))
-    total = int(s.get("tasks_total", s.get("total", 23)))
+    total = int(s.get("tasks_total", s.get("total", 24)))
     if completed == 0:
         tasks = raw.get("tasks", [])
         completed = sum(1 for t in tasks if t.get("passed") or t.get("grading", {}).get("mean", 0) > 0.5)
-        total = total or len(tasks) or 23
+        total = total or len(tasks) or 24
 
     # 평균 실행 시간
     tasks = raw.get("tasks", [])
@@ -247,7 +247,7 @@ def aggregate_runs(runs: list[dict]) -> dict:
 
 # ── 비용 추정 ──
 
-def estimate_cost(info: dict, num_tasks: int = 23) -> float:
+def estimate_cost(info: dict, num_tasks: int = 24) -> float:
     """모델 가격 정보로 1회 실행 비용 추정
 
     가정: 태스크당 평균 2000 input tokens + 3000 output tokens
