@@ -26,7 +26,7 @@
 │           │             │            │                       │
 │  ┌────────▼──┐  ┌───────▼───┐  ┌────▼──────────┐           │
 │  │OpenRouter │  │OpenRouter  │  │Azure OpenAI   │           │
-│  │ Nemotron  │  │ Nemotron   │  │ GPT-5.2-chat  │           │
+│  │ Nemotron  │  │ Nemotron   │  │ GPT-5.3-chat  │           │
 │  │  (free)   │  │  (free)    │  │               │           │
 │  └───────────┘  └───────────┘  └───────────────┘           │
 │                                                             │
@@ -166,7 +166,7 @@ openclaw.json → models.providers
 ├── modelstudio    (api: openai-completions)
 │   └── qwen3.5-plus, glm-5, glm-4.7, kimi-k2.5, MiniMax-M2.5, ...
 ├── azure-openai   (api: azure-openai-responses)
-│   └── gpt-5.2-chat
+│   └── gpt-5.3-chat
 └── upstage        (api: openai-completions, baseUrl: api.upstage.ai/v1)
     └── solar-pro3 (reasoning: true, compat.supportsReasoningEffort: true)
 ```
@@ -174,7 +174,7 @@ openclaw.json → models.providers
 **모델 레퍼런스 형식**: `{provider}/{model-id}`
 - `openrouter/nvidia/nemotron-3-super-120b-a12b:free`
 - `modelstudio/glm-5`
-- `azure-openai/gpt-5.2-chat`
+- `azure-openai/gpt-5.3-chat`
 - `upstage/solar-pro3`
 
 ### 4.2 모델이 models list에 표시되려면
@@ -278,7 +278,7 @@ openclaw config get models.providers.azure-openai
 openclaw config set agents.defaults.model "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
 
 # 모델 기본값 변경
-openclaw models set azure-openai/gpt-5.2-chat
+openclaw models set azure-openai/gpt-5.3-chat
 
 # 모델 목록 확인
 openclaw models list          # 허용된 모델만

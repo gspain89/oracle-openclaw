@@ -24,7 +24,7 @@ Oracle ARM Server (4 OCPU / 24 GB)
 └── ClawBench-KO (~/oracle-openclaw/server/claw-bench-ko/)
         │
         ├── Test agent ── sends tasks to ──→ LLM under test
-        └── Judge agent ── grades output ──→ GPT-5.2 / Claude
+        └── Judge agent ── grades output ──→ GPT-5.3 / Claude
 
 GitHub Pages
 └── Astro static site (leaderboard, charts, comparisons)
@@ -112,7 +112,7 @@ oracle-openclaw/
 | Nemotron 3 Super 120B | OpenRouter | Yes | Default test model, PinchBench 97.7% (automated-only) |
 | GLM-5 | DashScope (Z.AI) | No | First-ever PinchBench measurement for this model |
 | Qwen 3.5 Plus | DashScope | No | Vision-capable, 1M context window |
-| GPT-5.2-chat | Azure OpenAI | No | Used as judge model for LLM-graded tasks |
+| GPT-5.3-chat | Azure OpenAI | No | Used as judge model for LLM-graded tasks |
 
 ## Running Benchmarks
 
@@ -146,7 +146,7 @@ python3 server/python/normalize.py
 
 Each benchmark produces per-task scores (0.0 to 1.0). With `--runs N`, both **best** (highest across N runs) and **average** (mean across N runs) scores are reported.
 
-The judge model (default: `azure-openai/gpt-5.2-chat`) evaluates `llm_judge` and `hybrid` tasks using detailed rubrics with weighted criteria.
+The judge model (default: `azure-openai/gpt-5.3-chat`) evaluates `llm_judge` and `hybrid` tasks using detailed rubrics with weighted criteria.
 
 ## Dependencies
 

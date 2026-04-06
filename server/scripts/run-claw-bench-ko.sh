@@ -44,7 +44,7 @@ for m in data['models']:
 fi
 
 # ── 인자 파싱 ──
-JUDGE="azure-openai/gpt-5.2-chat"
+JUDGE="azure-openai/gpt-5.3-chat"
 RUNS=1
 DRY_RUN=""
 EXTRA_ARGS=""

@@ -15,7 +15,7 @@ ClawBench-KO는 OpenClaw 에이���트가 한국어 환경에서 실무 작
 | 채점 유형 | 태스크 수 | 방식 |
 |-----------|-----------|------|
 | automated | 4 | 출력 파일의 JSON 구조, 필드 값, 인코딩 등을 프로그래밍적으로 검증 |
-| llm_judge | 3 | judge 모델(GPT-5.2)이 루브릭 기반으로 100점 만점 채점 |
+| llm_judge | 3 | judge 모델(GPT-5.3)이 루브릭 기반으로 100점 만점 채점 |
 | hybrid | 3 | automated 50% + judge 50% 가중 결합 |
 
 
@@ -48,7 +48,7 @@ bash server/scripts/run-claw-bench-ko.sh nvidia/nemotron-3-super-120b-a12b:free 
 | 옵션 | 기본값 | 설명 |
 |------|--------|------|
 | `<model_id>` | (필수) | 테스트 대상 모델. models.json의 ID 사용 |
-| `--judge` | `azure-openai/gpt-5.2-chat` | judge 모델 (llm_judge/hybrid 태스크 채점용) |
+| `--judge` | `azure-openai/gpt-5.3-chat` | judge 모델 (llm_judge/hybrid 태스크 채점용) |
 | `--runs` | `1` | 반복 실행 횟수. 3회 이상 권장 (best/average 산출) |
 | `--task` | 전체 | 특정 태스크만 실행 (쉼표 구분) |
 | `--dry-run` | - | 태스크 목록만 출력, 실행하지 않음 |
@@ -580,7 +580,7 @@ JSON 추출 실패 시 fallback: ```json``` 블록 → 중괄호 블록 → "sco
   "benchmark": "claw-bench-ko",
   "version": "1.0.0",
   "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
-  "judge": "azure-openai/gpt-5.2-chat",
+  "judge": "azure-openai/gpt-5.3-chat",
   "timestamp": "2026-04-05T10:00:00Z",
   "runs_per_task": 3,
   "overall_best_score": 0.72,
@@ -630,6 +630,6 @@ JSON 추출 실패 시 fallback: ```json``` 블록 → 중괄호 블록 → "sco
 | runner | PinchBench 자체 (benchmark.py) | 자체 구현 (runner.py) |
 | 에이전트 | `openclaw agent` 서브프로세스 | 동일 |
 | judge | OpenClaw judge 에이전트 | 동일 |
-| 기본 judge 모델 | claude-opus-4.5 | GPT-5.2-chat |
+| 기본 judge 모델 | claude-opus-4.5 | GPT-5.3-chat |
 | 예상 소요 시간 | 40~60분 (24 태스크) | 15~40분 (10 태스크) |
 | 비용 (무료 모델) | judge 호출만 발생 | 동일 |

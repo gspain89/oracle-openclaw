@@ -40,7 +40,7 @@ Judge 모델:
 
 | 모델 ID | 용도 |
 |---------|------|
-| `azure-openai/gpt-5.2-chat` | LLM judge 채점용 (Azure) |
+| `azure-openai/gpt-5.3-chat` | LLM judge 채점용 (Azure) |
 
 ## 3. 새 모델 등록
 
@@ -222,7 +222,7 @@ python3 runner.py --model modelstudio/qwen3-8b --runs 3
 ```
 python3 runner.py \
   --model <모델ID>           # 필수. OpenClaw 모델 ID
-  --judge <judge모델ID>      # 기본: azure-openai/gpt-5.2-chat
+  --judge <judge모델ID>      # 기본: azure-openai/gpt-5.3-chat
   --task <태스크들>           # 특정 태스크만 실행 (쉼표 구분)
   --runs <횟수>              # 반복 횟수 (기본: 1)
   --output-dir <경로>        # 결과 저장 경로
@@ -316,7 +316,7 @@ cd ~/pinchbench-skill
 ```bash
 uv run scripts/benchmark.py \
   --model modelstudio/qwen3-8b \
-  --judge azure-openai/gpt-5.2-chat \
+  --judge azure-openai/gpt-5.3-chat \
   --no-upload \
   --no-fail-fast
 ```
@@ -326,7 +326,7 @@ uv run scripts/benchmark.py \
 ```bash
 uv run scripts/benchmark.py \
   --model modelstudio/qwen3-8b \
-  --judge azure-openai/gpt-5.2-chat \
+  --judge azure-openai/gpt-5.3-chat \
   --runs 3 \
   --no-upload \
   --no-fail-fast
@@ -337,7 +337,7 @@ uv run scripts/benchmark.py \
 ```
 uv run scripts/benchmark.py \
   --model <모델ID>               # 필수. OpenClaw 모델 ID
-  --judge <judge모델ID>          # judge 모델 (기본: claude-opus-4.5, 우리는 gpt-5.2 사용)
+  --judge <judge모델ID>          # judge 모델 (기본: claude-opus-4.5, 우리는 gpt-5.3 사용)
   --suite <태스크지정>            # "all" (기본), "automated-only", 또는 쉼표 구분 태스크 ID
   --runs <횟수>                  # 반복 횟수 (기본: 1)
   --output-dir <경로>            # 결과 저장 경로 (기본: results/)
@@ -360,13 +360,13 @@ uv run scripts/benchmark.py \
 uv run scripts/benchmark.py \
   --model modelstudio/qwen3-8b \
   --suite task_00_sanity,task_01_calendar \
-  --judge azure-openai/gpt-5.2-chat \
+  --judge azure-openai/gpt-5.3-chat \
   --no-upload --verbose
 
 # 프로덕션 3회 실행 (백그라운드, ~3시간)
 nohup uv run scripts/benchmark.py \
   --model modelstudio/qwen3-8b \
-  --judge azure-openai/gpt-5.2-chat \
+  --judge azure-openai/gpt-5.3-chat \
   --runs 3 \
   --no-upload \
   --no-fail-fast \

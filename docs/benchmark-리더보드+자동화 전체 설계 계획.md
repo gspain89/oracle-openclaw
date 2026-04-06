@@ -195,8 +195,8 @@ OpenClaw gateway 데몬은 **30분 주기로 LLM을 호출**하는 하트비트 
 ### Phase 2: 한국어 커스텀 벤치마크 — 완료
 
 - 10개 태스크 구현 (초기 15개 계획에서 축소. §7은 원래 계획, 실제 구현은 `claw-bench-ko-테스크 전체구조.md` 참조)
-- 3가지 채점 방식: automated(JSON 필드 비교), llm_judge(GPT-5.2 판정), hybrid(자동+LLM)
-- 판정 LLM: azure-openai/gpt-5.2-chat
+- 3가지 채점 방식: automated(JSON 필드 비교), llm_judge(GPT-5.3 판정), hybrid(자동+LLM)
+- 판정 LLM: azure-openai/gpt-5.3-chat
 
 **산출물**: 세계 유일의 한국어 OpenClaw 벤치마크
 

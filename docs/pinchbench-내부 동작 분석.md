@@ -25,10 +25,10 @@ cd ~/pinchbench-skill/scripts
 python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --suite automated-only
 
 # 전체 24개 태스크 (judge 필요)
-python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --judge azure-openai/gpt-5.2-chat
+python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --judge azure-openai/gpt-5.3-chat
 
 # 3회 반복 실행 (best/average 산출용)
-python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --judge azure-openai/gpt-5.2-chat --runs 3
+python3 benchmark.py --model openrouter/nvidia/nemotron-3-super-120b-a12b:free --judge azure-openai/gpt-5.3-chat --runs 3
 ```
 
 ### CLI 주요 옵션
@@ -98,7 +98,7 @@ benchmark.py 태스크 루프
         │       │
         │       └─ ensure_agent_exists(agent_id, judge_model, workspace)
         │           → openclaw agents add bench-judge-azure-openai-gpt-5-2-chat \
-        │               --model azure-openai/gpt-5.2-chat \
+        │               --model azure-openai/gpt-5.3-chat \
         │               --workspace /tmp/pinchbench/judge/workspace
         │
         └─ grading_type == "hybrid" → automated 채점 + llm_judge 채점 결합
@@ -198,7 +198,7 @@ _grade_llm_judge()
     │   │
     │   └─ subprocess.run(["openclaw", "agent", "--agent", judge_agent_id,
     │       "--session-id", "judge_1712345678000", "--message", chunk])
-    │       └─ Judge 모델(GPT-5.2)이 채점 결과를 JSON으로 응답
+    │       └─ Judge 모델(GPT-5.3)이 채점 결과를 JSON으로 응답
     │
     ├─ 6. 응답 파싱
     │   _parse_judge_response(transcript)
@@ -291,11 +291,11 @@ def grade(transcript: list, workspace_path: str) -> dict:
 
 ```
 테스트 모델: openrouter/nvidia/nemotron-3-super-120b-a12b:free (무료)
-Judge 모델: azure-openai/gpt-5.2-chat (Azure 크레딧)
+Judge 모델: azure-openai/gpt-5.3-chat (Azure 크레딧)
 실행 명령:
   python3 benchmark.py \
     --model openrouter/nvidia/nemotron-3-super-120b-a12b:free \
-    --judge azure-openai/gpt-5.2-chat \
+    --judge azure-openai/gpt-5.3-chat \
     --runs 3
 
 예상 결과:
@@ -307,7 +307,7 @@ Judge 모델: azure-openai/gpt-5.2-chat (Azure 크레딧)
 토큰 비용 (judge 기준, 추정):
   - judge 1회 호출: ~12,000 input tokens (프롬프트+transcript)
   - 45회 × 12,000 = ~540,000 input tokens
-  - Azure GPT-5.2 가격은 사용자 크레딧으로 처리
+  - Azure GPT-5.3 가격은 사용자 크레딧으로 처리
 ```
 
 
