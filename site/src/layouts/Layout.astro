@@ -12,7 +12,6 @@ const path = Astro.url.pathname;
 const nav = [
   { href: '',           label: '리더보드' },
   { href: 'compare',    label: '모델 비교' },
-  { href: 'cost',       label: '비용 효율' },
   { href: 'pinchbench', label: 'PinchBench' },
   { href: 'korean',     label: 'ClawBench-KO' },
   { href: 'runs',       label: '실행 기록' },
@@ -495,7 +494,6 @@ function isActive(page: string) {
     font-size: 0.85rem;
   }
   .score-best { color: var(--accent); font-weight: 600; }
-  .cost-cell { font-family: var(--font-mono); font-size: 0.82rem; }
   .free-text { color: var(--green); font-weight: 600; }
   .no-data { color: var(--text-3); font-size: 0.82rem; }
 

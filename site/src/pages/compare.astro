@@ -129,10 +129,6 @@ const modelsJson = JSON.stringify(models);
         var t = m.avg_seconds_per_task || maxT;
         return Math.max(0, Math.min(100, 100 - ((t - minT) / (maxT - minT)) * 100));
       }},
-      { key: 'cost', label: '가성비 (norm)', max: 100, get: function(m) {
-        if (m.cost_per_run_usd === 0) return 100;
-        return Math.max(0, 100 - (m.cost_per_run_usd / 1.0) * 100);
-      }},
     ];
 
     function update() {
@@ -246,8 +242,6 @@ const modelsJson = JSON.stringify(models);
       var rows = [
         ['제공자', val(a, function(m){return m.provider_label;}), val(b, function(m){return m.provider_label;})],
         ['무료', val(a, function(m){return m.free ? '예' : '아니오';}), val(b, function(m){return m.free ? '예' : '아니오';})],
-        ['비용/회', val(a, function(m){return '$' + m.cost_per_run_usd.toFixed(2);}), val(b, function(m){return '$' + m.cost_per_run_usd.toFixed(2);})],
-        ['파라미터', val(a, function(m){return m.params_b + 'B';}), val(b, function(m){return m.params_b + 'B';})],
         ['평균 속도', val(a, function(m){return m.avg_seconds_per_task + 's/task';}), val(b, function(m){return m.avg_seconds_per_task + 's/task';})],
         ['PinchBench (best)', val(a, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';})],
         ['ClawBench-KO (best)', val(a, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';})],

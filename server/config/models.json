@@ -6,10 +6,6 @@
       "name": "Qwen 3.5 27B",
       "provider_label": "DashScope (Alibaba)",
       "free": false,
-      "input_price_per_1m": 1.10,
-      "output_price_per_1m": 4.40,
-      "params_b": 27,
-      "context_window_tokens": 131072,
       "notes": "DashScope 무료 크레딧 1M tokens 사용 가능"
     },
     {
@@ -18,10 +14,6 @@
       "name": "Qwen 3.5 Plus",
       "provider_label": "DashScope (Alibaba)",
       "free": false,
-      "input_price_per_1m": 0.80,
-      "output_price_per_1m": 2.00,
-      "params_b": 72,
-      "context_window_tokens": 131072,
       "notes": "Plus 변형 — 응답 속도 빠름"
     },
     {
@@ -30,10 +22,6 @@
       "name": "GLM-5",
       "provider_label": "DashScope (Z.AI)",
       "free": false,
-      "input_price_per_1m": 3.00,
-      "output_price_per_1m": 12.00,
-      "params_b": 400,
-      "context_window_tokens": 131072,
       "notes": "Z.AI $9 크레딧 사용"
     },
     {
@@ -42,10 +30,6 @@
       "name": "GLM-5.1",
       "provider_label": "DashScope (Z.AI)",
       "free": false,
-      "input_price_per_1m": 3.00,
-      "output_price_per_1m": 12.00,
-      "params_b": 600,
-      "context_window_tokens": 131072,
       "notes": "GLM-5 후속. Z.AI 크레딧 사용"
     },
     {
@@ -54,10 +38,6 @@
       "name": "Nemotron 120B",
       "provider_label": "OpenRouter (NVIDIA)",
       "free": true,
-      "input_price_per_1m": 0,
-      "output_price_per_1m": 0,
-      "params_b": 120,
-      "context_window_tokens": 131072,
       "notes": "OpenRouter :free 모델 중 최고 성적"
     },
     {
@@ -66,10 +46,6 @@
       "name": "Qwen 3.5 122B",
       "provider_label": "DashScope (Alibaba)",
       "free": true,
-      "input_price_per_1m": 0,
-      "output_price_per_1m": 0,
-      "params_b": 122,
-      "context_window_tokens": 131072,
       "notes": "MoE 122B (10B active). 무료 체험 기간"
     },
     {
@@ -78,10 +54,6 @@
       "name": "Qwen3-8B",
       "provider_label": "DashScope (Alibaba)",
       "free": true,
-      "input_price_per_1m": 0,
-      "output_price_per_1m": 0,
-      "params_b": 8,
-      "context_window_tokens": 131072,
       "notes": "소형 모델 베이스라인"
     },
     {
@@ -90,11 +62,7 @@
       "name": "Solar Pro 3",
       "provider_label": "Upstage",
       "free": false,
-      "input_price_per_1m": 0.15,
-      "output_price_per_1m": 0.60,
-      "params_b": 102,
-      "context_window_tokens": 131072,
-      "notes": "102B MoE (12B active). reasoning_effort: high"
+      "notes": "102B MoE (12B active)"
     },
     {
       "id": "gpt-5.3-chat",
@@ -102,11 +70,7 @@
       "name": "GPT-5.3",
       "provider_label": "Azure OpenAI",
       "free": false,
-      "input_price_per_1m": 2.50,
-      "output_price_per_1m": 10.00,
-      "params_b": 0,
-      "context_window_tokens": 128000,
-      "notes": "Azure OpenAI 배포. judge 전용 (멀티턴 에이전트 불가 — reasoning replay 버그)"
+      "notes": "judge 전용 (멀티턴 에이전트 불가 — reasoning replay 버그)"
     }
   ]
 }

@@ -27,12 +27,20 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = SCRIPT_DIR.parent.parent
 
-PROVIDER_PREFIXES = ("openrouter/", "modelstudio/", "azure-openai/", "upstage/", "qwen/")
-
 # 벤치마크별 최소 태스크 수 — 이 미만이면 부분 실행으로 간주하여 리더보드에서 제외
 MIN_TASKS = {
     "pinchbench": 23,   # full 24개, sanity 제외 시 23개
     "clawbench_ko": 10, # 전체 10개
+}
+
+# provider ID → 표시명 매핑 (새 프로바이더 추가 시 여기에 한 줄 추가)
+PROVIDER_LABELS = {
+    "openrouter": "OpenRouter",
+    "modelstudio": "DashScope (Alibaba)",
+    "dashscope": "DashScope (Alibaba)",
+    "azure-openai": "Azure OpenAI",
+    "upstage": "Upstage",
+    "qwen": "DashScope (Alibaba)",
 }
 
 
@@ -48,15 +56,44 @@ def resolve_paths(repo_root: Path):
 
 # ── 모델 ID 매칭 ──
 
-def strip_provider_prefix(raw_model: str) -> str:
-    """raw JSON의 model 필드에서 provider 접두어 제거 → models.json ID와 매칭"""
-    for prefix in PROVIDER_PREFIXES:
-        if raw_model.startswith(prefix):
-            return raw_model[len(prefix):]
-    return raw_model
+def resolve_model_id(raw_model: str, registry: dict) -> str | None:
+    """결과 JSON의 model 필드를 models.json ID로 해석 (suffix 매칭)
+
+    provider 접두어 하드코딩 없이 registry 키 대상으로 매칭한다.
+    가장 긴 매칭을 선택하여 오탐 방지.
+    반환: 매칭된 registry ID, 또는 None (미등록 모델)
+    """
+    if raw_model in registry:
+        return raw_model
+    best = None
+    for reg_id in registry:
+        if raw_model.endswith(reg_id):
+            prefix_len = len(raw_model) - len(reg_id)
+            if prefix_len == 0 or raw_model[prefix_len - 1] == "/":
+                if best is None or len(reg_id) > len(best):
+                    best = reg_id
+    return best
+
+
+def extract_model_id(raw_model: str) -> str:
+    """미등록 모델의 ID 추출 — provider/ 접두어 제거
+
+    OpenClaw raw model 형식은 항상 provider/model-id 이다.
+    예: upstage/solar-pro3 → solar-pro3
+        openrouter/nvidia/nemotron → nvidia/nemotron
+    """
+    parts = raw_model.split("/", 1)
+    return parts[1] if len(parts) >= 2 else raw_model
+
+
+def extract_provider(raw_model: str) -> str:
+    """raw model 문자열에서 provider 이름 추출"""
+    return raw_model.split("/")[0] if "/" in raw_model else "unknown"
 
 
 def load_registry(path: Path) -> dict:
+    if not path.exists():
+        return {}
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     return {m["id"]: m for m in data["models"]}
@@ -325,22 +362,6 @@ def _make_run_record(
     return rec
 
 
-# ── 비용 추정 ──
-
-def estimate_cost(info: dict, num_tasks: int = 24) -> float:
-    """모델 가격 정보로 1회 실행 비용 추정
-
-    가정: 태스크당 평균 2000 input tokens + 3000 output tokens
-    """
-    if info.get("free", False):
-        return 0.0
-    inp = info.get("input_price_per_1m", 0)
-    out = info.get("output_price_per_1m", 0)
-    est_in = num_tasks * 2000
-    est_out = num_tasks * 3000
-    return round((est_in / 1e6 * inp) + (est_out / 1e6 * out), 2)
-
-
 # ── 기존 leaderboard 로드 (증분 병합용) ──
 
 def load_existing_leaderboard(path: Path) -> dict:
@@ -374,9 +395,20 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
     # 모델별 실행 결과 그룹핑 (model_id → [parsed_run, ...])
     pb_runs = {}  # model_id → [run_dict]
     ko_runs = {}
+    # 미등록 모델의 raw model 문자열 보존 (provider 추출용)
+    unregistered_raw = {}  # model_id → raw_model
 
     # 개별 run 기록 (runs.json 출력용)
     all_runs = []
+
+    def _resolve(parsed: dict) -> str:
+        """parsed["model_raw"]를 registry ID로 해석, 미등록이면 추출"""
+        resolved = resolve_model_id(parsed["model_raw"], registry)
+        if resolved:
+            return resolved
+        mid = extract_model_id(parsed["model_raw"])
+        unregistered_raw[mid] = parsed["model_raw"]
+        return mid
 
     for fpath in pb_files:
         try:
@@ -393,13 +425,7 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
             all_runs.append(_make_run_record(fpath, "pinchbench", skip_reason="파싱 실패"))
             continue
 
-        model_id = strip_provider_prefix(parsed["model_raw"])
-        if model_id not in registry:
-            print(f"  WARN {fpath.name}: 모델 '{model_id}' 레지스트리에 없음")
-            all_runs.append(_make_run_record(
-                fpath, "pinchbench", model_id=model_id, parsed=parsed,
-                skip_reason=f"모델 '{model_id}' 레지스트리에 없음"))
-            continue
+        model_id = _resolve(parsed)
 
         skip = validate_run(parsed, "pinchbench")
         if skip:
@@ -428,13 +454,7 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
             all_runs.append(_make_run_record(fpath, "clawbench_ko", skip_reason="파싱 실패"))
             continue
 
-        model_id = strip_provider_prefix(parsed["model_raw"])
-        if model_id not in registry:
-            print(f"  WARN {fpath.name}: 모델 '{model_id}' 레지스트리에 없음")
-            all_runs.append(_make_run_record(
-                fpath, "clawbench_ko", model_id=model_id, parsed=parsed,
-                skip_reason=f"모델 '{model_id}' 레지스트리에 없음"))
-            continue
+        model_id = _resolve(parsed)
 
         skip = validate_run(parsed, "clawbench_ko")
         if skip:
@@ -453,35 +473,43 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
     total_run_count = 0
     models_from_raw = set()  # raw 데이터로 갱신된 모델 ID
 
-    for model_id, info in registry.items():
+    # raw 결과가 있는 모든 model_id (등록 + 미등록 포함)
+    all_model_ids = set(pb_runs.keys()) | set(ko_runs.keys())
+
+    for model_id in sorted(all_model_ids):
+        models_from_raw.add(model_id)
         pb_list = pb_runs.get(model_id, [])
         ko_list = ko_runs.get(model_id, [])
 
-        # raw 데이터가 없는 모델 → 기존 leaderboard 데이터 유지
-        if not pb_list and not ko_list:
-            if model_id in existing:
-                models.append(existing[model_id])
-                # 기존 실행 횟수 합산
-                for bench in ("pinchbench", "clawbench_ko"):
-                    runs = existing[model_id].get("scores", {}).get(bench, {}).get("runs", [])
-                    total_run_count += len(runs)
-            continue
-
-        models_from_raw.add(model_id)
-
-        entry = {
-            "id": model_id,
-            "name": info["name"],
-            "provider": info.get("provider", ""),
-            "provider_label": info.get("provider_label", info.get("provider", "")),
-            "free": info.get("free", False),
-            "cost_per_run_usd": estimate_cost(info),
-            "input_price_per_1m": info.get("input_price_per_1m", 0),
-            "output_price_per_1m": info.get("output_price_per_1m", 0),
-            "params_b": info.get("params_b", 0),
-            "avg_seconds_per_task": 0,
-            "scores": {},
-        }
+        if model_id in registry:
+            info = registry[model_id]
+            provider = info.get("provider", "")
+            entry = {
+                "id": model_id,
+                "name": info.get("name", model_id),
+                "provider": provider,
+                "provider_label": info.get("provider_label",
+                    PROVIDER_LABELS.get(provider, provider)),
+                "free": info.get("free", False),
+                "avg_seconds_per_task": 0,
+                "scores": {},
+            }
+        else:
+            # 미등록 모델 — raw_model에서 provider 추출, 자동 매핑
+            raw_model = unregistered_raw.get(model_id, model_id)
+            provider = extract_provider(raw_model)
+            label = PROVIDER_LABELS.get(provider, provider)
+            entry = {
+                "id": model_id,
+                "name": model_id,
+                "provider": provider,
+                "provider_label": label,
+                "free": False,
+                "avg_seconds_per_task": 0,
+                "auto_registered": True,
+                "scores": {},
+            }
+            print(f"  AUTO: 미등록 모델 '{model_id}' → provider={provider}")
 
         # PinchBench 집계
         avg_secs = []
@@ -521,6 +549,14 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
             entry["scores"]["composite"] = {"best": ko_best, "average": ko_avg}
 
         models.append(entry)
+
+    # registry에 있지만 raw 결과 없는 모델 → 기존 leaderboard 유지
+    for model_id in registry:
+        if model_id not in all_model_ids and model_id in existing:
+            models.append(existing[model_id])
+            for bench in ("pinchbench", "clawbench_ko"):
+                runs = existing[model_id].get("scores", {}).get(bench, {}).get("runs", [])
+                total_run_count += len(runs)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 

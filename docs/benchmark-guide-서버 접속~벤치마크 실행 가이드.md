@@ -166,9 +166,9 @@ print("OK - params 설정 완료")
 PYEOF
 ```
 
-### models.json에도 등록
+### models.json 등록 (선택)
 
-`run-all.sh` → `normalize.py` 파이프라인이 모델을 인식하려면 `server/config/models.json`에도 추가해야 한다:
+`server/config/models.json`에 모델을 등록하면 리더보드에 표시명, 제공자 라벨, 무료 여부가 정확히 표시된다. **등록하지 않아도 벤치마크 실행과 리더보드 집계는 정상 동작한다** — normalize.py가 미등록 모델을 자동 감지하여 provider 접두어에서 메타데이터를 추출한다.
 
 ```json
 {
@@ -177,15 +177,11 @@ PYEOF
   "name": "표시 이름",
   "provider_label": "DashScope (제조사)",
   "free": true,
-  "input_price_per_1m": 0,
-  "output_price_per_1m": 0,
-  "params_b": 8,
-  "context_window_tokens": 131072,
   "notes": "메모"
 }
 ```
 
-> models.json에 없는 모델의 벤치마크 결과는 normalize.py가 WARN 로그를 출력하고 리더보드에서 제외된다.
+미등록 모델은 리더보드에 `auto_registered: true`로 표시되며, 모델 ID가 표시명으로 사용된다.
 
 ## 4. ClawBench-KO 실행
 
@@ -543,27 +539,23 @@ bash server/scripts/deploy-results.sh
 
 리더보드 확인: https://gspain89.github.io/oracle-openclaw/
 
-### B. 새 모델 추가 → 벤치마크 → 배포 (5단계)
+### B. 새 모델 추가 → 벤치마크 → 배포 (3단계)
 
 ```bash
-# 1) 서버 접속
+# 1) 서버 접속 + OpenClaw에 모델 등록 (§3 참조)
 ssh -i ~/Coding/oracle-openclaw/key/ssh-key-2026-04-03.key ubuntu@168.107.51.82
-
-# 2) OpenClaw에 모델 등록 (§3 참조)
 source ~/.nvm/nvm.sh
-# ... python3 스크립트로 openclaw.json에 모델 추가 ...
+# ... openclaw onboard 또는 python3 스크립트로 모델 추가 ...
 
-# 3) models.json에 모델 메타데이터 추가
+# 2) 벤치마크 실행 (normalize.py가 미등록 모델도 자동 감지)
 cd ~/oracle-openclaw
-nano server/config/models.json
-# → models 배열에 새 항목 추가 (id, name, provider, free, 가격 등)
-
-# 4) 벤치마크 실행
 bash server/scripts/run-all.sh 새모델-id --runs 3
 
-# 5) 결과 배포
+# 3) 결과 배포
 bash server/scripts/deploy-results.sh
 ```
+
+> models.json 등록은 선택사항이다. 등록하면 표시명/제공자 라벨이 정확해지고, `--all-models` 배치 실행에 포함된다.
 
 ### C. 서버 코드 업데이트 (로컬에서 수정한 경우)
 
