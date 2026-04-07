@@ -196,15 +196,33 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
 
     setup_workspace(workspace, task)
 
+    # 워크스페이스 초기 상태 확인 — 입력 파일이 제대로 복사됐는지
+    input_files = [f.name for f in workspace.iterdir() if f.is_file()]
+    if input_files:
+        logger.info("    입력 파일: %s", input_files)
+    else:
+        logger.warning("    ⚠️ 워크스페이스에 입력 파일 없음")
+
     agent_result = run_agent_task(
         agent_id, session_id, task["prompt"],
         task.get("timeout_seconds", 180)
     )
 
     workspace_files = collect_workspace_files(workspace)
+
+    # 에이전트 실행 에러 감지 — 비verbose에서도 항상 출력
+    if agent_result["returncode"] != 0:
+        logger.warning("    ⚠️ 에이전트 returncode=%d", agent_result["returncode"])
+        if agent_result["stderr"]:
+            logger.warning("    stderr: %s", agent_result["stderr"][:500])
+    if agent_result["timed_out"]:
+        logger.warning("    ⚠️ 에이전트 타임아웃 (%ds)", task.get("timeout_seconds", 180))
+    if not workspace_files:
+        logger.warning("    ⚠️ 워크스페이스 비어있음 — 에이전트가 파일을 생성하지 않음")
+    else:
+        logger.info("    워크스페이스 파일: %s", list(workspace_files.keys()))
+
     if verbose:
-        logger.info("    [VERBOSE] 워크스페이스 파일: %s",
-                     list(workspace_files.keys()))
         if agent_result["stdout"]:
             logger.info("    [VERBOSE] Stdout (500자): %s",
                          agent_result["stdout"][:500])

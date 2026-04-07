@@ -16,31 +16,27 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BENCH_DIR="$REPO_ROOT/server/claw-bench-ko"
 RESULTS_DIR="$REPO_ROOT/results/raw/korean"
-MODELS_FILE="$REPO_ROOT/server/config/models.json"
 TIMESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
 
 # 모델 ID에서 파일명 안전 문자열 생성
 SAFE_NAME="$(echo "$MODEL_ID" | tr '/:.' '__')"
 RUN_OUTPUT_DIR="$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}"
 
-# ── OpenClaw 프로바이더 접두어 해석 ──
-OPENCLAW_MODEL_ID="$MODEL_ID"
-if [ -f "$MODELS_FILE" ]; then
-  PROVIDER=$(python3 -c "
-import json
-with open('$MODELS_FILE') as f:
-    data = json.load(f)
-for m in data['models']:
-    if m['id'] == '$MODEL_ID':
-        print(m.get('provider', ''))
-        break
-" 2>/dev/null)
-
-  case "$PROVIDER" in
-    openrouter) OPENCLAW_MODEL_ID="openrouter/$MODEL_ID" ;;
-    dashscope)  OPENCLAW_MODEL_ID="modelstudio/$MODEL_ID" ;;
-    upstage)    OPENCLAW_MODEL_ID="upstage/$MODEL_ID" ;;
-  esac
+# ── OpenClaw 모델 ID 해석 ──
+# 이미 provider/ 접두어가 있으면 그대로 사용, 없으면 openclaw models list에서 자동 탐색
+if echo "$MODEL_ID" | grep -q '/'; then
+  OPENCLAW_MODEL_ID="$MODEL_ID"
+else
+  # openclaw이 인식하는 전체 모델 목록에서 suffix 매칭
+  MATCHED=$(openclaw models list 2>/dev/null | grep -E "/$MODEL_ID " | head -1 | awk '{print $1}')
+  if [ -n "$MATCHED" ]; then
+    OPENCLAW_MODEL_ID="$MATCHED"
+  else
+    echo "ERROR: openclaw models list에서 '$MODEL_ID' 모델을 찾을 수 없습니다."
+    echo "  'openclaw models list'로 사용 가능한 모델을 확인하세요."
+    echo "  또는 전체 ID를 직접 지정하세요: bash run-claw-bench-ko.sh azure-openai/gpt-5.3-chat"
+    exit 1
+  fi
 fi
 
 # ── 인자 파싱 ──

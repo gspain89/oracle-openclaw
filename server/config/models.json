@@ -95,6 +95,18 @@
       "params_b": 102,
       "context_window_tokens": 131072,
       "notes": "102B MoE (12B active). reasoning_effort: high"
+    },
+    {
+      "id": "gpt-5.3-chat",
+      "provider": "azure-openai",
+      "name": "GPT-5.3",
+      "provider_label": "Azure OpenAI",
+      "free": false,
+      "input_price_per_1m": 2.50,
+      "output_price_per_1m": 10.00,
+      "params_b": 0,
+      "context_window_tokens": 128000,
+      "notes": "Azure OpenAI 배포. 벤치마크 judge 겸 subject"
     }
   ]
 }
