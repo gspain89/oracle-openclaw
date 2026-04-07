@@ -87,6 +87,7 @@ cd "$PINCHBENCH_DIR"
 # full 24 tasks 실행 (judge 태스크 포함)
 uv run scripts/benchmark.py \
   --model "$OPENCLAW_MODEL_ID" \
+  --judge "azure-openai/gpt-5.3-chat" \
   --output-dir "$RUN_OUTPUT_DIR" \
   --no-upload \
   --no-fail-fast \
@@ -145,6 +146,7 @@ print(','.join(failed))
 
     uv run scripts/benchmark.py \
       --model "$OPENCLAW_MODEL_ID" \
+      --judge "azure-openai/gpt-5.3-chat" \
       --output-dir "$RETRY_DIR" \
       --no-upload \
       --suite "$FAILED_TASKS" \
