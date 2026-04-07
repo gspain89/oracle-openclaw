@@ -18,7 +18,7 @@ const ranked = [...models]
 
 const categories = [
   { id: 'data_processing', name: '데이터 처리', count: 4, desc: 'CSV 변환, JSON 분석, 로그 파싱, 데이터 병합' },
-  { id: 'doc_generation', name: '문서 생성', count: 3, desc: '인보이스 생성, 보고서 작성, 이메일 초안' },
+  { id: 'document_generation', name: '문서 생성', count: 3, desc: '인보이스 생성, 보고서 작성, 이메일 초안' },
   { id: 'korean_system', name: '한국 시스템', count: 3, desc: '주소 파싱, 금액 변환, 전화번호 정규화' },
 ];
 
@@ -226,24 +226,28 @@ const chartData = JSON.stringify(ranked.map((m: any) => ({
     var ctx = document.getElementById('category-chart');
     if (!ctx || !models.length) return;
 
-    var cats = ['data_processing', 'doc_generation', 'korean_system'];
+    // 카테고리별 색상 — 각 카테고리가 고유 색상을 가짐
+    var cats = ['data_processing', 'document_generation', 'korean_system'];
     var catLabels = ['데이터 처리', '문서 생성', '한국 시스템'];
-    var palette = ['#8c2416', '#2563a8', '#2d7a3e', '#b8860b', '#7c5cad', '#d4744a', '#6b5e50'];
+    var catColors = ['#8c5e3c', '#2d7a3e', '#2563a8'];
 
-    var datasets = models.map(function(m, i) {
+    // X축 = 모델명, 각 그룹 내 3개 바 = 카테고리별 색상
+    var labels = models.map(function(m) { return m.name; });
+    var datasets = cats.map(function(cat, ci) {
       return {
-        label: m.name,
-        data: cats.map(function(c) { return m.categories[c] || 0; }),
-        backgroundColor: palette[i % palette.length] + '88',
-        borderColor: palette[i % palette.length],
+        label: catLabels[ci],
+        data: models.map(function(m) { return m.categories[cat] || 0; }),
+        backgroundColor: catColors[ci] + 'aa',
+        borderColor: catColors[ci],
         borderWidth: 1.5,
         borderRadius: 4,
+        maxBarThickness: 48,
       };
     });
 
     new Chart(ctx, {
       type: 'bar',
-      data: { labels: catLabels, datasets: datasets },
+      data: { labels: labels, datasets: datasets },
       options: {
         responsive: true,
         scales: {
@@ -254,7 +258,11 @@ const chartData = JSON.stringify(ranked.map((m: any) => ({
           },
           y: {
             min: 0, max: 100,
-            ticks: { color: '#9e9082', font: { family: 'IBM Plex Mono', size: 11 } },
+            ticks: {
+              color: '#9e9082',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: function(v) { return v + '%'; },
+            },
             grid: { color: 'rgba(120,100,70,0.08)' },
             border: { color: 'rgba(120,100,70,0.15)' },
           }
@@ -275,10 +283,30 @@ const chartData = JSON.stringify(ranked.map((m: any) => ({
             borderColor: 'rgba(120,100,70,0.3)',
             borderWidth: 1,
             bodyFont: { family: 'IBM Plex Mono' },
+            callbacks: {
+              label: function(c) { return c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%'; }
+            }
           }
         },
         animation: { duration: 700, easing: 'easeOutCubic' },
-      }
+      },
+      plugins: [{
+        afterDatasetsDraw: function(chart) {
+          var c = chart.ctx;
+          chart.data.datasets.forEach(function(ds, i) {
+            var meta = chart.getDatasetMeta(i);
+            meta.data.forEach(function(bar, idx) {
+              var val = ds.data[idx];
+              if (val > 0) {
+                c.fillStyle = '#4a3f35';
+                c.textAlign = 'center';
+                c.font = '600 11px IBM Plex Mono';
+                c.fillText(val.toFixed(1), bar.x, bar.y - 6);
+              }
+            });
+          });
+        }
+      }]
     });
   });
 </script>

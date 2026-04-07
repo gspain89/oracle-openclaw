@@ -102,23 +102,34 @@ def load_registry(path: Path) -> dict:
 # ── 결과 파일 수집 ──
 
 def collect_result_files(raw_dir: Path) -> list[Path]:
-    """디렉토리 내 모든 결과 JSON 파일을 수집
+    """디렉토리 내 모든 결과 JSON 파일을 수집 (중복 제거)
 
     두 가지 패턴 처리:
       1. 플랫 파일: {dir}/{name}_{ts}.json
       2. 서브디렉토리: {dir}/{name}_{ts}/results.json
+
+    동일 이름의 플랫 파일과 서브디렉토리가 모두 존재하면 플랫 파일만 사용.
+    예: foo_20260407.json + foo_20260407/results.json → foo_20260407.json만 수집
     """
     if not raw_dir.exists():
         return []
 
-    files = []
+    flat_files = {}   # stem → Path
+    subdir_files = {} # dir name → Path
+
     for item in raw_dir.iterdir():
         if item.is_file() and item.suffix == ".json" and item.name != ".gitkeep":
-            files.append(item)
+            flat_files[item.stem] = item
         elif item.is_dir():
             rj = item / "results.json"
             if rj.exists():
-                files.append(rj)
+                subdir_files[item.name] = rj
+
+    files = list(flat_files.values())
+    for dirname, rj_path in subdir_files.items():
+        # 동일 이름의 플랫 파일이 없을 때만 서브디렉토리 결과 추가
+        if dirname not in flat_files:
+            files.append(rj_path)
     return files
 
 
