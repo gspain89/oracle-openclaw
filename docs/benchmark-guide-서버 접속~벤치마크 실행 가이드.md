@@ -14,7 +14,7 @@ ssh -i ~/Coding/oracle-openclaw/key/ssh-key-2026-04-03.key ubuntu@168.107.51.82
 source ~/.nvm/nvm.sh
 ```
 
-> 서버: Oracle ARM 4 OCPU / 24GB RAM, Ubuntu, OpenClaw 2026.4.2
+> 서버: Oracle ARM 4 OCPU / 24GB RAM, Ubuntu, OpenClaw 2026.4.5
 
 ## 2. 등록된 모델 목록
 
@@ -24,22 +24,24 @@ openclaw models list
 
 벤치마크 대상 모델 (`server/config/models.json` 기준):
 
-| 모델 ID | 프로바이더 | 무료 | 비고 |
-|---------|-----------|------|------|
-| `modelstudio/qwen3.5-27b` | DashScope | - | 27B |
-| `modelstudio/qwen3.5-plus` | DashScope | - | 72B, 응답 속도 빠름 |
-| `modelstudio/qwen3.5-122b-a10b` | DashScope | 무료 | 122B MoE (10B active) |
-| `modelstudio/qwen3-8b` | DashScope | 무료 | 8B, 베이스라인 |
-| `modelstudio/glm-5` | DashScope (Z.AI) | - | 400B |
-| `modelstudio/glm-5.1` | DashScope (Z.AI) | - | 600B |
-| `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | OpenRouter | 무료 | 120B, TTFT 변동 주의 |
-| `upstage/solar-pro3` | Upstage | - | 102B MoE (12B active), reasoning_effort: high |
+> OpenClaw 4.5부터 CLI 표시명이 `modelstudio/` → `qwen/`으로 변경되었다.
+> 설정 파일(`openclaw.json`)에는 여전히 `modelstudio`로 저장된다. `resolve-model.sh`가 자동으로 매칭하므로 short ID(예: `glm-5`)로 실행하면 된다.
+
+| 모델 ID (short) | CLI 표시명 | 프로바이더 | 무료 | 벤치마크 가능 | 비고 |
+|---------|-----------|-----------|------|:---:|------|
+| `qwen3.5-plus` | `qwen/qwen3.5-plus` | DashScope | - | O | 72B, 응답 속도 빠름 |
+| `qwen3.5-122b-a10b` | `qwen/qwen3.5-122b-a10b` | DashScope | 무료 | O | 122B MoE (10B active) |
+| `qwen3-8b` | `qwen/qwen3-8b` | DashScope | 무료 | O | 8B, 베이스라인 |
+| `glm-5` | `qwen/glm-5` | DashScope (Z.AI) | - | O | 400B |
+| `nvidia/nemotron-3-super-120b-a12b:free` | `openrouter/nvidia/...` | OpenRouter | 무료 | O | 120B, TTFT 변동 주의 |
+| `solar-pro3` | `upstage/solar-pro3` | Upstage | - | O | 102B MoE (12B active) |
+| `gpt-5.3-chat` | `azure-openai/gpt-5.3-chat` | Azure OpenAI | - | **X** | reasoning replay 버그 (§7.1) |
 
 Judge 모델:
 
-| 모델 ID | 용도 |
-|---------|------|
-| `azure-openai/gpt-5.3-chat` | LLM judge 채점용 (Azure) |
+| 모델 ID | 용도 | 비고 |
+|---------|------|------|
+| `azure-openai/gpt-5.3-chat` | LLM judge 채점용 | 단일 호출이라 정상 동작. 멀티턴 에이전트로는 사용 불가 |
 
 ## 3. 새 모델 등록
 
@@ -62,7 +64,6 @@ d["agents"]["defaults"]["models"][f"modelstudio/{MODEL_ID}"] = {}
 d["models"]["providers"]["modelstudio"]["models"].append({
     "id": MODEL_ID,
     "name": MODEL_ID,
-    "reasoning": False,
     "input": ["text"],
     "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
     "contextWindow": CONTEXT_WINDOW,
@@ -115,12 +116,10 @@ d["models"]["providers"][PROVIDER_NAME] = {
     "models": [{
         "id": MODEL_ID,
         "name": MODEL_ID,
-        "reasoning": True,
         "input": ["text"],
         "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
         "contextWindow": CONTEXT_WINDOW,
         "maxTokens": 65536,
-        "compat": {"supportsReasoningEffort": True, "thinkingFormat": "openai"}
     }]
 }
 
@@ -413,6 +412,26 @@ tail -f /tmp/pinchbench.log
 
 ## 7. 문제 해결
 
+### 7.1 GPT-5.3 reasoning replay 버그 (2026-04-07 확인)
+
+Azure OpenAI의 GPT-5.3은 멀티턴 에이전트로 사용할 수 없다. 1턴(단순 응답)은 성공하지만, 2턴 이상(도구 사용 후 히스토리 replay)에서 400 에러가 발생한다:
+
+```
+400 Item 'rs_...' of type 'reasoning' was provided without its required following item.
+```
+
+**원인**: GPT-5.3이 응답에 포함하는 reasoning 아이템(`rs_...`)을 OpenClaw이 세션 히스토리에 저장한 뒤, 다음 턴 요청에 재전송할 때 Azure Responses API가 요구하는 구조(reasoning 뒤에 반드시 output 아이템이 따라야 함)를 지키지 못한다.
+
+**시도한 해결책과 결과**:
+
+| 시도 | 결과 |
+|------|------|
+| 모델 정의에 `"reasoning": false` | 400 동일 (요청 파라미터만 제어, 응답의 reasoning 토큰 저장/재전송에 무영향) |
+| OpenClaw 4.2 → 4.5 업데이트 | 400 동일 |
+| API 타입 `azure-openai-responses` → `openai-completions` | 404 (Azure URL 패턴 비호환) |
+
+**결론**: OpenClaw 프레임워크 버그. GPT-5.3은 **judge 전용**(단일 API 호출)으로만 사용.
+
 ### "request timed out" 에러가 반복되면
 
 OpenClaw #46049 버그 — LLM HTTP 요청 타임아웃이 30초로 하드코딩. TTFT(Time-To-First-Token)가 느린 모델(OpenRouter free-tier 등)에서 발생. DashScope 모델은 TTFT가 빠라서 이 문제가 거의 없다.
@@ -611,12 +630,11 @@ rm -rf ~/.openclaw/agents/cb-*/agent/*
 
 ### Upstage 프로바이더 필수 설정
 
-Upstage API는 OpenAI의 `store` 파라미터를 지원하지 않는다. OpenClaw이 이 파라미터를 기본으로 전송하면 `400 Unrecognized request arguments supplied: store` 에러가 발생한다. 모델 정의에 반드시 `compat.supportsStore: false`를 설정해야 한다:
+Upstage API는 OpenAI의 `store` 파라미터를 지원하지 않는다. OpenClaw이 이 파라미터를 기본으로 전송하면 `400 Unrecognized request arguments supplied: store` 에러가 발생한다. 모델 정의에 `compat.supportsStore: false`를 설정해야 한다:
 
 ```json
 {
   "id": "solar-pro3",
-  "reasoning": false,
   "compat": { "supportsStore": false }
 }
 ```

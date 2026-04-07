@@ -6,7 +6,7 @@
 
 ## 1. 배경 및 목표
 
-Oracle Cloud ARM 서버(VM.Standard.A1.Flex, 4 OCPU / 24GB RAM, 춘천 리전)에서 OpenClaw v2026.4.2가 구동 중이다. 다양한 LLM(Large Language Model) 모델의 에이전트 성능을 체계적으로 비교하고, 결과를 공개 리더보드로 운영한다.
+Oracle Cloud ARM 서버(VM.Standard.A1.Flex, 4 OCPU / 24GB RAM, 춘천 리전)에서 OpenClaw v2026.4.5가 구동 중이다. 다양한 LLM(Large Language Model) 모델의 에이전트 성능을 체계적으로 비교하고, 결과를 공개 리더보드로 운영한다.
 
 **핵심 가치**: GLM-5의 PinchBench 점수는 아직 세상에 없는 데이터이므로, 최초 측정이라는 독자적 의미가 있다. 한국어 커스텀 벤치마크 역시 어떤 벤치마크에도 존재하지 않는 유일한 평가 체계가 된다.
 
@@ -100,7 +100,7 @@ oracle-openclaw/
 | Qwen 3.5 Plus | DashScope | X | 미측정 | Plus 변형, 응답 속도 빠름 |
 | GLM-5 | Z.AI / DashScope | X | 미측정 | **세계 최초 PinchBench 측정 목표** |
 | GLM-5.1 | Z.AI / DashScope | X | 미측정 | GLM-5 후속 |
-| **Solar Pro 3** | Upstage | X | 미측정 | 102B MoE (12B active). reasoning_effort: high |
+| **Solar Pro 3** | Upstage | X | 미측정 | 102B MoE (12B active) |
 
 ### 제외된 모델 (2026-04-04 확정)
 

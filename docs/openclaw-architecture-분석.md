@@ -1,7 +1,7 @@
 # OpenClaw 아키텍처 — 에이전트 시스템 구조와 동작 원리
 
-최종 수정: 2026-04-04
-대상 버전: OpenClaw 2026.4.2 (d74a122)
+최종 수정: 2026-04-07
+대상 버전: OpenClaw 2026.4.5 (3e72c03)
 서버: Oracle ARM 168.107.51.82 (ubuntu)
 
 ---
@@ -163,12 +163,12 @@ openclaw agent --agent main --local -m "테스트"
 openclaw.json → models.providers
 ├── openrouter     (api: openai-completions)
 │   └── nemotron-3-super-120b-a12b:free, auto, arcee-ai/..., qwen/...
-├── modelstudio    (api: openai-completions)
+├── modelstudio    (api: openai-completions, CLI 표시명: qwen/)
 │   └── qwen3.5-plus, glm-5, glm-4.7, kimi-k2.5, MiniMax-M2.5, ...
 ├── azure-openai   (api: azure-openai-responses)
-│   └── gpt-5.3-chat
+│   └── gpt-5.2-chat, gpt-5.3-chat (멀티턴 불가 — reasoning replay 버그)
 └── upstage        (api: openai-completions, baseUrl: api.upstage.ai/v1)
-    └── solar-pro3 (reasoning: true, compat.supportsReasoningEffort: true)
+    └── solar-pro3 (compat.supportsStore: false)
 ```
 
 **모델 레퍼런스 형식**: `{provider}/{model-id}`
@@ -279,11 +279,11 @@ openclaw models status --json # 상세 상태 (auth, allowed 포함)
 ```
 
 
-## 6. 현재 서버 에이전트 현황 (2026-04-04)
+## 6. 현재 서버 에이전트 현황 (2026-04-07)
 
 | Agent ID | 모델 | Workspace | 용도 |
 |----------|------|-----------|------|
-| **main** (default) | Nemotron 120B (free) | `~/.openclaw/workspace` | 일반 대화/작업 |
+| **main** (default) | GPT-5.3 Chat (Azure) | `~/.openclaw/workspace` | 일반 대화/작업 |
 | bench-arcee-ai-trinity-large-preview-free | arcee-ai/trinity-large-preview:free | `/tmp/pinchbench/0001/` | PinchBench 잔여 (제외 대상) |
 | bench-openrouter-arcee-ai-trinity-large-preview-free | openrouter/arcee-ai/trinity-large-preview:free | `/tmp/pinchbench/0012/` | PinchBench 잔여 (제외 대상) |
 | bench-openrouter-qwen-qwen3-coder-free | openrouter/qwen/qwen3-coder:free | `/tmp/pinchbench/0014/` | PinchBench 잔여 (제외 대상) |

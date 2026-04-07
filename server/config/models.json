@@ -106,7 +106,7 @@
       "output_price_per_1m": 10.00,
       "params_b": 0,
       "context_window_tokens": 128000,
-      "notes": "Azure OpenAI 배포. 벤치마크 judge 겸 subject"
+      "notes": "Azure OpenAI 배포. judge 전용 (멀티턴 에이전트 불가 — reasoning replay 버그)"
     }
   ]
 }
