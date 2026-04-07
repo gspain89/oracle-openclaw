@@ -64,12 +64,14 @@ mkdir -p "$RESULTS_DIR"
 # ── 실행 ──
 START_SEC=$(date +%s)
 
+# --no-fail-fast: 첫 태스크 0%여도 나머지 계속 실행 (0% 재시도 로직이 후속 처리)
 python3 "$BENCH_DIR/runner.py" \
   --model "$OPENCLAW_MODEL_ID" \
   --judge "$JUDGE" \
   --runs "$RUNS" \
   --output-dir "$RUN_OUTPUT_DIR" \
   --skip-preflight \
+  --no-fail-fast \
   $DRY_RUN \
   $EXTRA_ARGS \
   2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
