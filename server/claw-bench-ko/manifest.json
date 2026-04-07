@@ -9,7 +9,7 @@
     "llm_judge": 3,
     "hybrid": 3
   },
-  "default_judge_model": "azure-openai/gpt-5.3-chat",
+  "default_judge_model": "anthropic/claude-opus-4-6",
   "default_timeout_seconds": 180,
   "tasks": [
     {

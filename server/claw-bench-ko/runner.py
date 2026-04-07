@@ -6,7 +6,7 @@
 
 옵션:
   --model       OpenClaw 모델 ID (필수)
-  --judge       judge 모델 ID (기본: azure-openai/gpt-5.3-chat)
+  --judge       judge 모델 ID (기본: anthropic/claude-opus-4-6)
   --task        특정 태스크만 실행 (쉼표 구분)
   --runs        반복 실행 횟수 (기본: 1)
   --output-dir  결과 저장 디렉토리
@@ -391,7 +391,7 @@ def _preflight_check_model(model_id: str, label: str = "Model"):
 def main():
     parser = argparse.ArgumentParser(description="claw-bench-ko runner")
     parser.add_argument("--model", required=True, help="OpenClaw 모델 ID")
-    parser.add_argument("--judge", default="azure-openai/gpt-5.3-chat",
+    parser.add_argument("--judge", default="anthropic/claude-opus-4-6",
                         help="Judge 모델 ID")
     parser.add_argument("--task", default=None,
                         help="특정 태스크만 실행 (쉼표 구분)")

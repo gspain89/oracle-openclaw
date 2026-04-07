@@ -81,8 +81,8 @@ START_SEC=$(date +%s)
 
 cd "$PINCHBENCH_DIR"
 
-# judge 프롬프트 분할 방지 — 기본값 3000자 초과 시 멀티턴 전송되어
-# Azure OpenAI GPT-5.3의 멀티턴 버그에 걸림. 충분히 크게 설정하여 단일 메시지로 전송.
+# judge 프롬프트 분할 방지 — 기본값 3000자 초과 시 멀티턴으로 분할 전송됨.
+# 일부 모델(Azure GPT-5.3 등)은 멀티턴에서 빈 응답을 반환하므로 단일 메시지로 강제.
 export PINCHBENCH_JUDGE_MAX_MSG_CHARS=100000
 
 # PinchBench 실행 — uv run으로 benchmark.py 호출
@@ -91,7 +91,7 @@ export PINCHBENCH_JUDGE_MAX_MSG_CHARS=100000
 # full 24 tasks 실행 (judge 태스크 포함)
 uv run scripts/benchmark.py \
   --model "$OPENCLAW_MODEL_ID" \
-  --judge "azure-openai/gpt-5.3-chat" \
+  --judge "anthropic/claude-opus-4-6" \
   --output-dir "$RUN_OUTPUT_DIR" \
   --no-upload \
   --no-fail-fast \
@@ -150,7 +150,7 @@ print(','.join(failed))
 
     uv run scripts/benchmark.py \
       --model "$OPENCLAW_MODEL_ID" \
-      --judge "azure-openai/gpt-5.3-chat" \
+      --judge "anthropic/claude-opus-4-6" \
       --output-dir "$RETRY_DIR" \
       --no-upload \
       --suite "$FAILED_TASKS" \

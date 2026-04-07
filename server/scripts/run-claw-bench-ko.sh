@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/resolve-model.sh" "$MODEL_ID"
 
 # ── 인자 파싱 ──
-JUDGE="azure-openai/gpt-5.3-chat"
+JUDGE="anthropic/claude-opus-4-6"
 RUNS=1
 DRY_RUN=""
 EXTRA_ARGS=""
