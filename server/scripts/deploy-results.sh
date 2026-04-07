@@ -14,7 +14,7 @@ echo ""
 cd "$REPO_ROOT"
 
 # ── 1) 변경사항 확인 ──
-if ! git diff --quiet "$NORMALIZED/" 2>/dev/null && ! git diff --cached --quiet "$NORMALIZED/" 2>/dev/null; then
+if ! git diff --quiet "$NORMALIZED/" 2>/dev/null || ! git diff --cached --quiet "$NORMALIZED/" 2>/dev/null; then
   echo "[1/3] 변경된 파일:"
   git diff --name-only "$NORMALIZED/"
   git diff --cached --name-only "$NORMALIZED/"
