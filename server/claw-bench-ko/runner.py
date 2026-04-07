@@ -90,11 +90,20 @@ def create_agent(agent_id: str, model: str, workspace: Path):
 
 
 def delete_agent(agent_id: str):
-    """에이전트 삭제 (세션/워크스페이스 정리)"""
+    """에이전트 삭제 (세션/워크스페이스 정리)
+
+    openclaw agents delete --force가 세션 파일을 완전히 삭제하지 못하는
+    경우가 있어, 에이전트 디렉토리를 직접 정리한다. 세션 히스토리가 남으면
+    동일 agent_id 재사용 시 이전 대화가 누적되어 모델이 혼란에 빠진다.
+    """
     subprocess.run(
         ["openclaw", "agents", "delete", agent_id, "--force"],
         capture_output=True, text=True, timeout=30
     )
+    # openclaw delete가 남기는 잔여 세션/에이전트 파일 강제 정리
+    agent_dir = Path.home() / ".openclaw" / "agents" / agent_id
+    if agent_dir.exists():
+        shutil.rmtree(agent_dir, ignore_errors=True)
     logger.debug("  에이전트 삭제: %s", agent_id)
 
 
