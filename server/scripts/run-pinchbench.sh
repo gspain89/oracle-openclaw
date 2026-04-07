@@ -81,6 +81,10 @@ START_SEC=$(date +%s)
 
 cd "$PINCHBENCH_DIR"
 
+# judge 프롬프트 분할 방지 — 기본값 3000자 초과 시 멀티턴 전송되어
+# Azure OpenAI GPT-5.3의 멀티턴 버그에 걸림. 충분히 크게 설정하여 단일 메시지로 전송.
+export PINCHBENCH_JUDGE_MAX_MSG_CHARS=100000
+
 # PinchBench 실행 — uv run으로 benchmark.py 호출
 # --no-upload: 외부 서버 업로드 방지
 # --no-fail-fast: 실패해도 나머지 태스크 계속
