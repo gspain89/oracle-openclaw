@@ -100,10 +100,7 @@ oracle-openclaw/
 | Qwen 3.5 Plus | DashScope | X | 미측정 | Plus 변형, 응답 속도 빠름 |
 | GLM-5 | Z.AI / DashScope | X | 미측정 | **세계 최초 PinchBench 측정 목표** |
 | GLM-5.1 | Z.AI / DashScope | X | 미측정 | GLM-5 후속 |
-| **Solar Pro 3** | Upstage | X | 미측정 | 102B MoE (12B active). reasoning_effort: minimal |
-| **Solar Pro 3 (Thinking)** | Upstage | X | 미측정 | 위와 동일 API 모델. reasoning_effort: high (openclaw alias) |
-
-> Solar Pro 3는 같은 API 모델(`solar-pro3`)을 `reasoning_effort` 파라미터만 다르게 호출하는 2개 variant로 등록됨. openclaw의 model alias + params 기능으로 구현.
+| **Solar Pro 3** | Upstage | X | 미측정 | 102B MoE (12B active). reasoning_effort: high |
 
 ### 제외된 모델 (2026-04-04 확정)
 

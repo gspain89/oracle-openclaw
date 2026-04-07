@@ -94,19 +94,7 @@
       "output_price_per_1m": 0.60,
       "params_b": 102,
       "context_window_tokens": 131072,
-      "notes": "102B MoE (12B active). reasoning_effort: minimal"
-    },
-    {
-      "id": "solar-pro3-thinking",
-      "provider": "upstage",
-      "name": "Solar Pro 3 (Thinking)",
-      "provider_label": "Upstage",
-      "free": false,
-      "input_price_per_1m": 0.15,
-      "output_price_per_1m": 0.60,
-      "params_b": 102,
-      "context_window_tokens": 131072,
-      "notes": "102B MoE (12B active). reasoning_effort: high — thinking 토큰 추가 소모"
+      "notes": "102B MoE (12B active). reasoning_effort: high"
     }
   ]
 }

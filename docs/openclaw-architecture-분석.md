@@ -188,29 +188,21 @@ openclaw.json → models.providers
 
 ### 4.2a 모델 Alias와 Params
 
-같은 API 모델을 다른 파라미터로 호출해야 할 때 `agents.defaults.models`에서 alias + params를 사용한다:
+모델별 추가 파라미터가 필요할 때 `agents.defaults.models`에서 `params`를 사용한다:
 
 ```json
 {
   "agents": {
     "defaults": {
       "models": {
-        "upstage/solar-pro3": { "params": { "reasoning_effort": "minimal" } },
-        "upstage/solar-pro3-thinking": {
-          "alias": "upstage/solar-pro3",
-          "params": { "reasoning_effort": "high" }
-        }
+        "upstage/solar-pro3": { "params": { "reasoning_effort": "high" } }
       }
     }
   }
 }
 ```
 
-- `alias`: 실제 API 호출 시 resolve되는 대상 모델
-- `params`: API 요청 body에 병합되는 추가 파라미터
-- `openclaw models list`에서 `configured,alias:upstage/solar-pro3`로 표시됨
-
-이 기능으로 동일 모델의 reasoning/non-reasoning variant를 리더보드에 별도 항목으로 운영한다.
+- `params`: API 요청 body에 병합되는 추가 파라미터 (예: `reasoning_effort`)
 
 ### 4.3 인증 (Auth Profiles)
 
