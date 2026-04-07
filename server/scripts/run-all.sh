@@ -68,6 +68,13 @@ fi
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" 2>/dev/null || true
 
+# ── OpenClaw 등록 모델 목록 캐싱 (사전 검증용) ──
+OPENCLAW_MODELS_CACHE=$(openclaw models list 2>/dev/null || echo "")
+if [ -z "$OPENCLAW_MODELS_CACHE" ]; then
+  echo "ERROR: openclaw models list 실행 실패. openclaw CLI가 올바르게 설정되어 있는지 확인하세요."
+  exit 1
+fi
+
 # ── 모델 목록 구성 ──
 if [ -n "$ALL_MODELS" ]; then
   MODELS=$(python3 -c "
@@ -82,8 +89,39 @@ for m in ordered:
     free_flag = '1' if m['free'] else '0'
     print(f'{m[\"id\"]}|{m[\"name\"]}|{free_flag}')
 ")
+
+  # --all-models 사전 검증: 각 모델이 openclaw에 등록되어 있는지 확인
+  echo "모델 사전 검증..."
+  VALIDATED_MODELS=""
+  SKIPPED=0
+  while IFS='|' read -r mid mname mfree; do
+    [ -z "$mid" ] && continue
+    if echo "$mid" | grep -q '/'; then
+      # 이미 full ID — 직접 확인
+      if echo "$OPENCLAW_MODELS_CACHE" | grep -qE "^${mid} "; then
+        VALIDATED_MODELS="${VALIDATED_MODELS}${mid}|${mname}|${mfree}"$'\n'
+      else
+        echo "  SKIP: $mname ($mid) — openclaw에 미등록"
+        SKIPPED=$((SKIPPED + 1))
+      fi
+    else
+      # short ID — suffix 매칭
+      if echo "$OPENCLAW_MODELS_CACHE" | grep -qE "/${mid} "; then
+        VALIDATED_MODELS="${VALIDATED_MODELS}${mid}|${mname}|${mfree}"$'\n'
+      else
+        echo "  SKIP: $mname ($mid) — openclaw에 미등록"
+        SKIPPED=$((SKIPPED + 1))
+      fi
+    fi
+  done <<< "$MODELS"
+  MODELS="$VALIDATED_MODELS"
+  if [ "$SKIPPED" -gt 0 ]; then
+    echo "  ${SKIPPED}개 모델 건너뜀 (openclaw 미등록)"
+  fi
+  echo ""
 else
-  # 단일 모델 — models.json에서 이름 조회
+  # 단일 모델 — resolve-model.sh로 검증 (실패 시 즉시 exit)
+  source "$SCRIPT_DIR/resolve-model.sh" "$MODEL_ID"
   MODEL_NAME=$(python3 -c "
 import json
 with open('$MODELS_FILE') as f:

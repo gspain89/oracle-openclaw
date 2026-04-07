@@ -320,6 +320,41 @@ def _log_category_summary(aggregated: list):
     logger.info("   %s", "-" * 44)
 
 
+def _preflight_check_model(model_id: str, label: str = "Model"):
+    """openclaw models list에서 모델 존재 여부를 사전 확인.
+    미등록 모델이면 에러 메시지와 함께 즉시 종료."""
+    try:
+        result = subprocess.run(
+            ["openclaw", "models", "list"],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0:
+            logger.error("openclaw models list 실행 실패: %s", result.stderr[:200])
+            sys.exit(1)
+
+        # 모델 ID가 출력에 존재하는지 확인
+        if model_id not in result.stdout:
+            logger.error("=" * 80)
+            logger.error("🚨 %s '%s' — openclaw에 등록되지 않은 모델", label, model_id)
+            logger.error("")
+            logger.error("  등록된 모델 목록:")
+            for line in result.stdout.strip().split("\n"):
+                line = line.strip()
+                if "/" in line and not line.startswith("Model"):
+                    logger.error("    %s", line.split()[0])
+            logger.error("")
+            logger.error("  모델을 등록하려면: openclaw config")
+            logger.error("=" * 80)
+            sys.exit(1)
+
+        logger.info("✅ %s 확인: %s", label, model_id)
+    except FileNotFoundError:
+        logger.error("openclaw CLI를 찾을 수 없습니다")
+        sys.exit(1)
+    except subprocess.TimeoutExpired:
+        logger.warning("openclaw models list 타임아웃 — 검증 건너뜀")
+
+
 def main():
     parser = argparse.ArgumentParser(description="claw-bench-ko runner")
     parser.add_argument("--model", required=True, help="OpenClaw 모델 ID")
@@ -339,6 +374,10 @@ def main():
 
     if args.verbose:
         logger.setLevel(logging.DEBUG)
+
+    # ── 모델 사전 검증 (preflight) ──
+    _preflight_check_model(args.model, "Model")
+    _preflight_check_model(args.judge, "Judge")
 
     manifest = load_manifest()
     logger.info("=" * 80)

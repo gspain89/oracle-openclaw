@@ -16,36 +16,15 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PINCHBENCH_DIR="$HOME/pinchbench-skill"
 RESULTS_DIR="$REPO_ROOT/results/raw/pinchbench"
-MODELS_FILE="$REPO_ROOT/server/config/models.json"
 TIMESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
 
 # 모델 ID에서 파일명-안전 문자열 생성
 SAFE_NAME="$(echo "$MODEL_ID" | tr '/:' '__')"
 RUN_OUTPUT_DIR="$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}"
 
-# ── OpenClaw 프로바이더 접두어 해석 ──
-# models.json의 provider 필드를 보고 openclaw에서 사용할 전체 모델 ID를 결정
-# 예: provider=openrouter, id=arcee-ai/xxx → openrouter/arcee-ai/xxx
-#     provider=dashscope, id=qwen3.5-plus → modelstudio/qwen3.5-plus
-OPENCLAW_MODEL_ID="$MODEL_ID"
-if [ -f "$MODELS_FILE" ]; then
-  PROVIDER=$(python3 -c "
-import json
-with open('$MODELS_FILE') as f:
-    data = json.load(f)
-for m in data['models']:
-    if m['id'] == '$MODEL_ID':
-        print(m.get('provider', ''))
-        break
-" 2>/dev/null)
-
-  case "$PROVIDER" in
-    openrouter) OPENCLAW_MODEL_ID="openrouter/$MODEL_ID" ;;
-    dashscope)  OPENCLAW_MODEL_ID="modelstudio/$MODEL_ID" ;;
-    upstage)    OPENCLAW_MODEL_ID="upstage/$MODEL_ID" ;;
-  esac
-fi
-
+# ── OpenClaw 모델 ID 해석 ──
+SCRIPT_DIR_PB="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR_PB/resolve-model.sh" "$MODEL_ID"
 echo "  OpenClaw 모델 ID: $OPENCLAW_MODEL_ID"
 
 echo "=== PinchBench 실행 ==="

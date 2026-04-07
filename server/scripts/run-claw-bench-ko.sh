@@ -23,21 +23,8 @@ SAFE_NAME="$(echo "$MODEL_ID" | tr '/:.' '__')"
 RUN_OUTPUT_DIR="$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}"
 
 # ── OpenClaw 모델 ID 해석 ──
-# 이미 provider/ 접두어가 있으면 그대로 사용, 없으면 openclaw models list에서 자동 탐색
-if echo "$MODEL_ID" | grep -q '/'; then
-  OPENCLAW_MODEL_ID="$MODEL_ID"
-else
-  # openclaw이 인식하는 전체 모델 목록에서 suffix 매칭
-  MATCHED=$(openclaw models list 2>/dev/null | grep -E "/$MODEL_ID " | head -1 | awk '{print $1}')
-  if [ -n "$MATCHED" ]; then
-    OPENCLAW_MODEL_ID="$MATCHED"
-  else
-    echo "ERROR: openclaw models list에서 '$MODEL_ID' 모델을 찾을 수 없습니다."
-    echo "  'openclaw models list'로 사용 가능한 모델을 확인하세요."
-    echo "  또는 전체 ID를 직접 지정하세요: bash run-claw-bench-ko.sh azure-openai/gpt-5.3-chat"
-    exit 1
-  fi
-fi
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/resolve-model.sh" "$MODEL_ID"
 
 # ── 인자 파싱 ──
 JUDGE="azure-openai/gpt-5.3-chat"
@@ -70,16 +57,7 @@ if [ ! -f "$BENCH_DIR/runner.py" ]; then
   exit 1
 fi
 
-if ! command -v openclaw &>/dev/null; then
-  # nvm 환경 로드 시도
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-fi
-
-if ! command -v openclaw &>/dev/null; then
-  echo "ERROR: openclaw CLI를 찾을 수 없습니다"
-  exit 1
-fi
+# openclaw CLI는 resolve-model.sh에서 이미 확인됨
 
 mkdir -p "$RESULTS_DIR"
 
