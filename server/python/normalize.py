@@ -36,6 +36,7 @@ def resolve_paths(repo_root: Path):
         "raw_ko": repo_root / "results" / "raw" / "korean",
         "models": repo_root / "server" / "config" / "models.json",
         "output": repo_root / "results" / "normalized" / "leaderboard.json",
+        "runs_output": repo_root / "results" / "normalized" / "runs.json",
     }
 
 
@@ -245,6 +246,60 @@ def aggregate_runs(runs: list[dict]) -> dict:
     return result, round(avg_sec_per_task, 1)
 
 
+# ── 개별 run 기록 생성 ──
+
+def _make_run_record(
+    fpath: Path,
+    bench: str,
+    model_id: str = "",
+    parsed: dict | None = None,
+    included: bool = False,
+    skip_reason: str = "",
+) -> dict:
+    """개별 결과 파일의 메타데이터를 runs.json용 레코드로 변환
+
+    fpath가 results/raw/ 하위의 디렉토리 내 results.json인 경우
+    삭제 대상은 그 디렉토리이므로 부모 경로를 rm_path로 기록한다.
+    """
+    # 삭제 경로: 서브디렉토리 형태면 디렉토리, 플랫 파일이면 파일 자체
+    if fpath.name == "results.json":
+        rm_target = fpath.parent
+    else:
+        rm_target = fpath
+    # 상대 경로로 변환 (results/raw/... 형태)
+    rm_parts = rm_target.parts
+    rm_path = str(rm_target)
+    for i, p in enumerate(rm_parts):
+        if p == "results" and i + 1 < len(rm_parts) and rm_parts[i + 1] == "raw":
+            rm_path = str(Path(*rm_parts[i:]))
+            break
+
+    # 경로에서 results/raw/ 이후 상대 경로만 추출 (사이트 표시용)
+    parts = fpath.parts
+    display_path = str(fpath)
+    for i, p in enumerate(parts):
+        if p == "results" and i + 1 < len(parts) and parts[i + 1] == "raw":
+            display_path = str(Path(*parts[i:]))
+            break
+
+    rec = {
+        "file": display_path,
+        "rm_path": rm_path,
+        "benchmark": bench,
+        "model_id": model_id,
+        "score": parsed["score"] if parsed else None,
+        "completed": parsed["completed"] if parsed else None,
+        "total": parsed["total"] if parsed else None,
+        "date": parsed["date"] if parsed else "",
+        "included": included,
+    }
+    if skip_reason:
+        rec["skip_reason"] = skip_reason
+    if parsed and parsed.get("categories"):
+        rec["categories"] = parsed["categories"]
+    return rec
+
+
 # ── 비용 추정 ──
 
 def estimate_cost(info: dict, num_tasks: int = 24) -> float:
@@ -295,25 +350,35 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
     pb_runs = {}  # model_id → [run_dict]
     ko_runs = {}
 
+    # 개별 run 기록 (runs.json 출력용)
+    all_runs = []
+
     for fpath in pb_files:
         try:
             with open(fpath, encoding="utf-8") as f:
                 raw = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             print(f"  SKIP {fpath.name}: {e}")
+            all_runs.append(_make_run_record(fpath, "pinchbench", skip_reason=str(e)))
             continue
 
         parsed = parse_pinchbench_run(raw)
         if not parsed:
             print(f"  SKIP {fpath.name}: 파싱 실패")
+            all_runs.append(_make_run_record(fpath, "pinchbench", skip_reason="파싱 실패"))
             continue
 
         model_id = strip_provider_prefix(parsed["model_raw"])
         if model_id not in registry:
             print(f"  WARN {fpath.name}: 모델 '{model_id}' 레지스트리에 없음")
+            all_runs.append(_make_run_record(
+                fpath, "pinchbench", model_id=model_id, parsed=parsed,
+                skip_reason=f"모델 '{model_id}' 레지스트리에 없음"))
             continue
 
         pb_runs.setdefault(model_id, []).append(parsed)
+        all_runs.append(_make_run_record(
+            fpath, "pinchbench", model_id=model_id, parsed=parsed, included=True))
 
     for fpath in ko_files:
         try:
@@ -321,19 +386,26 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
                 raw = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             print(f"  SKIP {fpath.name}: {e}")
+            all_runs.append(_make_run_record(fpath, "clawbench_ko", skip_reason=str(e)))
             continue
 
         parsed = parse_korean_run(raw)
         if not parsed:
             print(f"  SKIP {fpath.name}: 파싱 실패")
+            all_runs.append(_make_run_record(fpath, "clawbench_ko", skip_reason="파싱 실패"))
             continue
 
         model_id = strip_provider_prefix(parsed["model_raw"])
         if model_id not in registry:
             print(f"  WARN {fpath.name}: 모델 '{model_id}' 레지스트리에 없음")
+            all_runs.append(_make_run_record(
+                fpath, "clawbench_ko", model_id=model_id, parsed=parsed,
+                skip_reason=f"모델 '{model_id}' 레지스트리에 없음"))
             continue
 
         ko_runs.setdefault(model_id, []).append(parsed)
+        all_runs.append(_make_run_record(
+            fpath, "clawbench_ko", model_id=model_id, parsed=parsed, included=True))
 
     # 리더보드 모델 엔트리 빌드
     models = []
@@ -416,7 +488,7 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
         if kept:
             print(f"\n기존 데이터 유지: {', '.join(kept)}")
 
-    return {
+    leaderboard = {
         "meta": {
             "last_updated": now,
             "total_runs": total_run_count,
@@ -425,6 +497,7 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
         },
         "models": models,
     }
+    return leaderboard, all_runs
 
 
 def main():
@@ -444,7 +517,7 @@ def main():
     registry = load_registry(paths["models"])
     print(f"등록 모델: {len(registry)}개")
 
-    leaderboard = build_leaderboard(registry, paths)
+    leaderboard, all_runs = build_leaderboard(registry, paths)
 
     models = leaderboard["models"]
     new_count = leaderboard["meta"].get("_new_from_raw", 0)
@@ -476,6 +549,24 @@ def main():
 
     size = paths["output"].stat().st_size
     print(f"\n저장: {paths['output']} ({size:,} bytes)")
+
+    # runs.json — 개별 실행 기록 (날짜 역순)
+    if all_runs:
+        all_runs.sort(key=lambda r: r.get("date", ""), reverse=True)
+        included_count = sum(1 for r in all_runs if r["included"])
+        runs_data = {
+            "meta": {
+                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "total": len(all_runs),
+                "included": included_count,
+                "excluded": len(all_runs) - included_count,
+            },
+            "runs": all_runs,
+        }
+        with open(paths["runs_output"], "w", encoding="utf-8") as f:
+            json.dump(runs_data, f, ensure_ascii=False, indent=2)
+        rsize = paths["runs_output"].stat().st_size
+        print(f"저장: {paths['runs_output']} ({rsize:,} bytes) — {len(all_runs)}개 run")
 
 
 if __name__ == "__main__":

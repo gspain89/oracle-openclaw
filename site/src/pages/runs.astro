@@ -1,0 +1,279 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+let runsData: any = { meta: { total: 0, included: 0, excluded: 0 }, runs: [] };
+try {
+  const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'runs.json'), 'utf-8');
+  runsData = JSON.parse(raw);
+} catch {}
+
+const { meta, runs } = runsData;
+const benchLabels: Record<string, string> = {
+  pinchbench: 'PinchBench',
+  clawbench_ko: 'ClawBench-KO',
+};
+---
+
+<Layout title="실행 기록">
+  <div class="page-header">
+    <h1>Run <span class="accent">History</span></h1>
+    <p>개별 벤치마크 실행 기록 &mdash; normalize 포함 여부 및 삭제 경로</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-value">{meta.total}</span>
+      <span class="stat-label">전체 Run</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{meta.included}</span>
+      <span class="stat-label">리더보드 포함</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{meta.excluded}</span>
+      <span class="stat-label">제외</span>
+    </div>
+  </div>
+
+  {runs.length > 0 ? (
+    <section class="table-section">
+      <div class="table-controls">
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">전체</button>
+          <button class="filter-btn" data-filter="included">포함</button>
+          <button class="filter-btn" data-filter="excluded">제외</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="runs-table">
+          <thead>
+            <tr>
+              <th class="col-status">상태</th>
+              <th>모델</th>
+              <th>벤치마크</th>
+              <th class="col-score">점수</th>
+              <th class="col-tasks">태스크</th>
+              <th>날짜</th>
+              <th class="col-path">삭제 경로</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((r: any) => (
+              <tr class={`run-row ${r.included ? 'included' : 'excluded'}`} data-included={r.included ? 'yes' : 'no'}>
+                <td class="col-status">
+                  {r.included
+                    ? <span class="status-badge status-included" title="리더보드에 포함됨">포함</span>
+                    : <span class="status-badge status-excluded" title={r.skip_reason || '제외됨'}>제외</span>}
+                </td>
+                <td>
+                  <span class="model-name">{r.model_id || '(unknown)'}</span>
+                </td>
+                <td>
+                  <span class="bench-tag">{benchLabels[r.benchmark] || r.benchmark}</span>
+                </td>
+                <td class="col-score score-mono">
+                  {r.score != null
+                    ? <span class={r.score >= 70 ? 'score-high' : r.score >= 40 ? 'score-mid' : 'score-low'}>{r.score.toFixed(1)}%</span>
+                    : <span class="no-data">&mdash;</span>}
+                </td>
+                <td class="col-tasks score-mono">
+                  {r.completed != null ? `${r.completed}/${r.total}` : <span class="no-data">&mdash;</span>}
+                </td>
+                <td class="date-cell">{r.date || <span class="no-data">&mdash;</span>}</td>
+                <td class="col-path">
+                  <code class="rm-path" title={`rm -rf ${r.rm_path}`}>{r.rm_path}</code>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  ) : (
+    <div class="card">
+      <div class="empty-state">
+        <div class="icon">RUN</div>
+        <h3>실행 기록 없음</h3>
+        <p>normalize.py 실행 후 runs.json이 생성되면 여기에 표시됩니다.</p>
+      </div>
+    </div>
+  )}
+
+  <div class="card help-card">
+    <h3>삭제 방법</h3>
+    <p>서버에서 해당 run을 삭제하고 리더보드에서 제외하려면:</p>
+    <pre><code># 1) 결과 파일/디렉토리 삭제{'\n'}rm -rf &lt;삭제 경로&gt;{'\n'}{'\n'}# 2) normalize 재실행{'\n'}python3 server/python/normalize.py{'\n'}{'\n'}# 3) 배포{'\n'}bash server/scripts/deploy-results.sh</code></pre>
+  </div>
+</Layout>
+
+<style>
+  .table-section {
+    animation: fade-up 0.5s var(--ease-out-expo) 0.2s backwards;
+  }
+  .table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .filter-bar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg-warm);
+    border-radius: var(--radius-sm);
+  }
+  .filter-btn {
+    padding: 6px 16px;
+    border: none;
+    border-radius: calc(var(--radius-sm) - 2px);
+    background: transparent;
+    color: var(--text-2);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { color: var(--text); }
+  .filter-btn.active {
+    background: var(--bg-card);
+    color: var(--accent);
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .col-status { width: 64px; text-align: center; }
+  td.col-status { text-align: center; }
+  .col-score { min-width: 72px; }
+  .col-tasks { min-width: 64px; }
+  .col-path { min-width: 200px; }
+
+  .status-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+  }
+  .status-included {
+    background: rgba(45, 122, 62, 0.1);
+    color: var(--green);
+    border: 1px solid rgba(45, 122, 62, 0.2);
+  }
+  .status-excluded {
+    background: rgba(201, 42, 42, 0.08);
+    color: var(--red);
+    border: 1px solid rgba(201, 42, 42, 0.15);
+  }
+
+  .bench-tag {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-2);
+    padding: 2px 8px;
+    background: var(--bg-warm);
+    border-radius: 4px;
+  }
+
+  .score-high { color: var(--green); font-weight: 600; }
+  .score-mid { color: var(--gold); font-weight: 600; }
+  .score-low { color: var(--red); font-weight: 600; }
+
+  .date-cell {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+
+  .rm-path {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-2);
+    background: var(--bg-card-alt);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    word-break: break-all;
+    transition: background 0.15s, color 0.15s;
+  }
+  .rm-path:hover {
+    background: rgba(201, 42, 42, 0.08);
+    color: var(--red);
+  }
+
+  tr.excluded { opacity: 0.6; }
+  tr.excluded:hover { opacity: 1; }
+  tr.run-row.hidden { display: none; }
+
+  .help-card {
+    margin-top: 24px;
+    animation: fade-up 0.5s var(--ease-out-expo) 0.3s backwards;
+  }
+  .help-card p {
+    font-size: 0.85rem;
+    color: var(--text-2);
+    margin: 8px 0 12px;
+  }
+  .help-card pre {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    overflow-x: auto;
+  }
+  .help-card code {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.7;
+  }
+</style>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', function() {
+    var filterBtns = document.querySelectorAll('.filter-btn');
+    var rows = document.querySelectorAll('.run-row');
+
+    filterBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        filterBtns.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var filter = btn.dataset.filter;
+
+        rows.forEach(function(row) {
+          if (filter === 'all') {
+            row.classList.remove('hidden');
+          } else if (filter === 'included') {
+            row.classList.toggle('hidden', row.dataset.included !== 'yes');
+          } else {
+            row.classList.toggle('hidden', row.dataset.included === 'yes');
+          }
+        });
+      });
+    });
+
+    /* rm 경로 클릭 → 클립보드 복사 */
+    document.querySelectorAll('.rm-path').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var path = el.textContent;
+        var cmd = 'rm -rf ' + path;
+        navigator.clipboard.writeText(cmd).then(function() {
+          var orig = el.textContent;
+          el.textContent = 'copied!';
+          el.style.color = 'var(--green)';
+          setTimeout(function() {
+            el.textContent = orig;
+            el.style.color = '';
+          }, 1200);
+        });
+      });
+    });
+  });
+</script>

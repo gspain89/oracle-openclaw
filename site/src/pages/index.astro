@@ -192,6 +192,22 @@ const modelsJson = JSON.stringify(models);
           ? ' <span class="free-tag">FREE</span>'
           : '';
 
+        var runsCount = (scores.runs && scores.runs.length) || 1;
+        var stdVal = scores.std != null ? '\u00b1' + scores.std.toFixed(2) : '';
+
+        var tooltipRunsHtml = '';
+        if (scores.runs && scores.runs.length > 0) {
+          tooltipRunsHtml = '<hr class="tooltip-divider">' +
+            '<div class="tooltip-runs-title">개별 실행</div>';
+          scores.runs.forEach(function(run, ri) {
+            tooltipRunsHtml +=
+              '<div class="tooltip-run-item">' +
+                '<span class="tooltip-run-date">' + (run.date || 'Run ' + (ri+1)) + '</span>' +
+                '<span class="tooltip-run-score">' + run.score.toFixed(1) + '%</span>' +
+              '</div>';
+          });
+        }
+
         row.innerHTML =
           '<div class="bar-rank">' +
             '<span class="' + rankClass + '">' + (i + 1) + '</span>' +
@@ -211,6 +227,15 @@ const modelsJson = JSON.stringify(models);
                 '<span class="bar-value">' + scores.average.toFixed(1) + '</span>' +
               '</div>' +
             '</div>' +
+          '</div>' +
+          '<div class="bar-tooltip">' +
+            '<div class="tooltip-header">' + model.name + '</div>' +
+            '<div class="tooltip-sub">' + model.provider_label + '</div>' +
+            '<div class="tooltip-row"><span class="tooltip-label">Best score</span><span class="tooltip-val">' + scores.best.toFixed(1) + '%</span></div>' +
+            '<div class="tooltip-row"><span class="tooltip-label">Avg score</span><span class="tooltip-val">' + scores.average.toFixed(1) + '%</span></div>' +
+            (stdVal ? '<div class="tooltip-row"><span class="tooltip-label">Std</span><span class="tooltip-val">' + stdVal + '</span></div>' : '') +
+            '<div class="tooltip-row"><span class="tooltip-label">Runs</span><span class="tooltip-val">' + runsCount + '</span></div>' +
+            tooltipRunsHtml +
           '</div>';
 
         container.appendChild(row);

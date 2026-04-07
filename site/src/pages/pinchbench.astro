@@ -31,29 +31,54 @@ const ranked = [...models]
         <span class="legend-item"><span class="legend-dot avg"></span> Average</span>
       </div>
       <div class="bar-chart">
-        {ranked.map((m: any, i: number) => (
-          <div class="bar-row" style={`--delay: ${i * 0.06}s`}>
-            <div class="bar-rank">
-              <span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span>
-            </div>
-            <div class="bar-info">
-              <span class="bar-model-name">{m.name}</span>
-              <span class="bar-provider">{m.provider_label}{m.free ? ' ' : ''}{m.free && <span class="free-tag">FREE</span>}</span>
-            </div>
-            <div class="bar-tracks">
-              <div class="bar-track">
-                <div class="bar-fill best" style={`width:${m.scores.pinchbench.best}%`}>
-                  <span class="bar-value">{m.scores.pinchbench.best.toFixed(1)}</span>
+        {ranked.map((m: any, i: number) => {
+          const pb = m.scores.pinchbench;
+          const runsCount = pb.runs?.length || 1;
+          const stdVal = pb.std != null ? `\u00b1${pb.std.toFixed(2)}` : '';
+          return (
+            <div class="bar-row" style={`--delay: ${i * 0.06}s`}>
+              <div class="bar-rank">
+                <span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span>
+              </div>
+              <div class="bar-info">
+                <span class="bar-model-name">{m.name}</span>
+                <span class="bar-provider">{m.provider_label}{m.free ? ' ' : ''}{m.free && <span class="free-tag">FREE</span>}</span>
+              </div>
+              <div class="bar-tracks">
+                <div class="bar-track">
+                  <div class="bar-fill best" style={`width:${pb.best}%`}>
+                    <span class="bar-value">{pb.best.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill avg" style={`width:${pb.average}%`}>
+                    <span class="bar-value">{pb.average.toFixed(1)}</span>
+                  </div>
                 </div>
               </div>
-              <div class="bar-track">
-                <div class="bar-fill avg" style={`width:${m.scores.pinchbench.average}%`}>
-                  <span class="bar-value">{m.scores.pinchbench.average.toFixed(1)}</span>
-                </div>
+              <div class="bar-tooltip">
+                <div class="tooltip-header">{m.name}</div>
+                <div class="tooltip-sub">{m.provider_label}</div>
+                <div class="tooltip-row"><span class="tooltip-label">Best score</span><span class="tooltip-val">{pb.best.toFixed(1)}%</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Avg score</span><span class="tooltip-val">{pb.average.toFixed(1)}%</span></div>
+                {stdVal && <div class="tooltip-row"><span class="tooltip-label">Std</span><span class="tooltip-val">{stdVal}</span></div>}
+                <div class="tooltip-row"><span class="tooltip-label">Runs</span><span class="tooltip-val">{runsCount}</span></div>
+                {pb.runs && pb.runs.length > 0 && (
+                  <Fragment>
+                    <hr class="tooltip-divider" />
+                    <div class="tooltip-runs-title">개별 실행</div>
+                    {pb.runs.map((run: any, ri: number) => (
+                      <div class="tooltip-run-item">
+                        <span class="tooltip-run-date">{run.date || `Run ${ri+1}`}</span>
+                        <span class="tooltip-run-score">{run.score.toFixed(1)}%</span>
+                      </div>
+                    ))}
+                  </Fragment>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   ) : (

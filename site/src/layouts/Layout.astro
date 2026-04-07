@@ -15,6 +15,7 @@ const nav = [
   { href: 'cost',       label: '비용 효율' },
   { href: 'pinchbench', label: 'PinchBench' },
   { href: 'korean',     label: 'ClawBench-KO' },
+  { href: 'runs',       label: '실행 기록' },
 ];
 
 function isActive(page: string) {
@@ -604,6 +605,80 @@ function isActive(page: string) {
     font-size: 2.5rem;
     margin-bottom: 14px;
     opacity: 0.3;
+  }
+
+  /* ── Bar Tooltip ── */
+  .bar-row {
+    position: relative;
+  }
+  .bar-tooltip {
+    display: none;
+    position: absolute;
+    top: -8px;
+    right: 0;
+    transform: translateY(-100%);
+    z-index: 50;
+    background: rgba(26, 20, 16, 0.94);
+    border: 1px solid rgba(120, 100, 70, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    min-width: 220px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+  }
+  .bar-row:hover .bar-tooltip {
+    display: block;
+  }
+  .tooltip-header {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #f0ead8;
+    margin-bottom: 2px;
+  }
+  .tooltip-sub {
+    font-size: 0.7rem;
+    color: #9e9082;
+    margin-bottom: 8px;
+  }
+  .tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 0.78rem;
+  }
+  .tooltip-label {
+    color: #9e9082;
+  }
+  .tooltip-val {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: #f0ead8;
+  }
+  .tooltip-divider {
+    border: none;
+    border-top: 1px solid rgba(120, 100, 70, 0.2);
+    margin: 6px 0;
+  }
+  .tooltip-runs-title {
+    font-size: 0.7rem;
+    color: #9e9082;
+    margin-bottom: 4px;
+  }
+  .tooltip-run-item {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 1px 0;
+  }
+  .tooltip-run-date { color: #9e9082; }
+  .tooltip-run-score { color: #f0ead8; font-weight: 500; }
+  .tooltip-footer {
+    font-size: 0.68rem;
+    color: #6b5e50;
+    margin-top: 6px;
   }
 
   /* ── Animations ── */
