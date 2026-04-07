@@ -370,14 +370,19 @@ def main():
                         help="상세 로그 출력")
     parser.add_argument("--no-fail-fast", action="store_true",
                         help="첫 태스크 0점이어도 계속 실행")
+    parser.add_argument("--skip-preflight", action="store_true",
+                        help="모델 사전 검증 건너뜀 (shell script에서 이미 검증한 경우)")
     args = parser.parse_args()
 
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
     # ── 모델 사전 검증 (preflight) ──
-    _preflight_check_model(args.model, "Model")
-    _preflight_check_model(args.judge, "Judge")
+    if args.skip_preflight:
+        logger.debug("모델 사전 검증 건너뜀 (--skip-preflight)")
+    else:
+        _preflight_check_model(args.model, "Model")
+        _preflight_check_model(args.judge, "Judge")
 
     manifest = load_manifest()
     logger.info("=" * 80)

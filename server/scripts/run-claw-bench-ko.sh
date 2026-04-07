@@ -69,6 +69,7 @@ python3 "$BENCH_DIR/runner.py" \
   --judge "$JUDGE" \
   --runs "$RUNS" \
   --output-dir "$RUN_OUTPUT_DIR" \
+  --skip-preflight \
   $DRY_RUN \
   $EXTRA_ARGS \
   2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
