@@ -55,6 +55,7 @@ while [[ $# -gt 0 ]]; do
     --runs)   RUNS="$2"; shift 2 ;;
     --dry-run) DRY_RUN="--dry-run"; shift ;;
     --task)   EXTRA_ARGS="$EXTRA_ARGS --task $2"; shift 2 ;;
+    --no-fail-fast) EXTRA_ARGS="$EXTRA_ARGS --no-fail-fast"; shift ;;
     *) echo "알 수 없는 옵션: $1"; exit 1 ;;
   esac
 done
