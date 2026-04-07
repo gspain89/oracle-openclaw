@@ -27,7 +27,13 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = SCRIPT_DIR.parent.parent
 
-PROVIDER_PREFIXES = ("openrouter/", "modelstudio/", "azure-openai/", "upstage/")
+PROVIDER_PREFIXES = ("openrouter/", "modelstudio/", "azure-openai/", "upstage/", "qwen/")
+
+# 벤치마크별 최소 태스크 수 — 이 미만이면 부분 실행으로 간주하여 리더보드에서 제외
+MIN_TASKS = {
+    "pinchbench": 23,   # full 24개, sanity 제외 시 23개
+    "clawbench_ko": 10, # 전체 10개
+}
 
 
 def resolve_paths(repo_root: Path):
@@ -198,6 +204,25 @@ def parse_korean_run(raw: dict) -> dict | None:
         "avg_seconds_per_task": round(avg_sec, 1),
         "model_raw": raw.get("model", ""),
     }
+
+
+# ── 유효성 검증 ──
+
+def validate_run(parsed: dict, bench: str) -> str | None:
+    """실행 결과가 리더보드 집계에 포함될 수 있는지 검증
+
+    반환: None이면 유효, 문자열이면 제외 사유
+    """
+    # 1) 부분 실행: 태스크 수가 벤치마크 기준 미달
+    min_tasks = MIN_TASKS.get(bench, 1)
+    if parsed["total"] < min_tasks:
+        return f"부분 실행 ({parsed['total']}/{min_tasks} 태스크)"
+
+    # 2) 전체 0%: 모든 태스크가 0점 → 인프라/설정 실패로 간주
+    if parsed["score"] == 0 and parsed["completed"] == 0:
+        return "전체 0% (인프라/설정 실패 추정)"
+
+    return None
 
 
 # ── 다중 실행 집계 ──
@@ -376,6 +401,14 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
                 skip_reason=f"모델 '{model_id}' 레지스트리에 없음"))
             continue
 
+        skip = validate_run(parsed, "pinchbench")
+        if skip:
+            print(f"  EXCLUDE {fpath.name}: {skip}")
+            all_runs.append(_make_run_record(
+                fpath, "pinchbench", model_id=model_id, parsed=parsed,
+                skip_reason=skip))
+            continue
+
         pb_runs.setdefault(model_id, []).append(parsed)
         all_runs.append(_make_run_record(
             fpath, "pinchbench", model_id=model_id, parsed=parsed, included=True))
@@ -401,6 +434,14 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
             all_runs.append(_make_run_record(
                 fpath, "clawbench_ko", model_id=model_id, parsed=parsed,
                 skip_reason=f"모델 '{model_id}' 레지스트리에 없음"))
+            continue
+
+        skip = validate_run(parsed, "clawbench_ko")
+        if skip:
+            print(f"  EXCLUDE {fpath.name}: {skip}")
+            all_runs.append(_make_run_record(
+                fpath, "clawbench_ko", model_id=model_id, parsed=parsed,
+                skip_reason=skip))
             continue
 
         ko_runs.setdefault(model_id, []).append(parsed)
