@@ -178,8 +178,10 @@ while IFS='|' read -r model_id model_name free_flag; do
         MODEL_SUCCESS=$((MODEL_SUCCESS + 1))
         echo "  => PinchBench $run_i/$RUNS 성공"
       else
+        EXIT_CODE=$?
         MODEL_FAIL=$((MODEL_FAIL + 1))
-        echo "  => PinchBench $run_i/$RUNS 실패"
+        echo "  => PinchBench $run_i/$RUNS 실패 (exit $EXIT_CODE)"
+        echo "     로그: $REPO_ROOT/results/raw/pinchbench/ 에서 최신 .log 파일 확인"
       fi
     done
   fi
@@ -193,8 +195,10 @@ while IFS='|' read -r model_id model_name free_flag; do
         MODEL_SUCCESS=$((MODEL_SUCCESS + 1))
         echo "  => ClawBench-KO $run_i/$RUNS 성공"
       else
+        EXIT_CODE=$?
         MODEL_FAIL=$((MODEL_FAIL + 1))
-        echo "  => ClawBench-KO $run_i/$RUNS 실패"
+        echo "  => ClawBench-KO $run_i/$RUNS 실패 (exit $EXIT_CODE)"
+        echo "     로그: $REPO_ROOT/results/raw/korean/ 에서 최신 .log 파일 확인"
       fi
     done
   fi

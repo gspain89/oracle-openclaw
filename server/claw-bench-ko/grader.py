@@ -299,6 +299,24 @@ def grade_automated(task: dict, workspace: Path) -> dict:
     passed = sum(1 for r in results if r["passed"])
     score = passed / total if total > 0 else 0.0
 
+    # 실패한 체크 로그 출력
+    failed = [r for r in results if not r["passed"]]
+    if failed:
+        print(f"    채점 상세: {passed}/{total} 통과")
+        for r in failed:
+            c = r["check"]
+            err = r.get("error", "")
+            desc = c.get("type", "?")
+            if "path" in c:
+                desc += f" [{c['path']}]"
+            if "field" in c:
+                desc += f" .{c['field']}"
+            if "expected" in c:
+                desc += f" == {c['expected']}"
+            if err:
+                desc += f" (err: {err})"
+            print(f"      ✗ {desc}")
+
     return {
         "score": round(score, 4),
         "passed": passed,
@@ -379,6 +397,7 @@ def grade_llm_judge(task: dict, workspace: Path, transcript: str,
 def _parse_judge_response(response: str) -> dict:
     """judge 응답에서 JSON 추출. 실패 시 점수 0 반환."""
     if not response:
+        print("    ⚠️ judge 응답 비어있음 — API 에러 또는 타임아웃 가능성")
         return {"score": 0, "feedback": "judge 응답 없음"}
 
     # ```json ... ``` 블록 추출 시도
@@ -405,6 +424,7 @@ def _parse_judge_response(response: str) -> dict:
         return {"score": int(num_match.group(1)),
                 "feedback": "JSON 파싱 실패 — 점수만 추출"}
 
+    print(f"    ⚠️ judge 응답 파싱 실패 — 응답 앞 300자: {response[:300]}")
     return {"score": 0, "feedback": f"judge 응답 파싱 실패: {response[:200]}"}
 
 

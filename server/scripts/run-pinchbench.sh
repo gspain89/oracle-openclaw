@@ -67,9 +67,11 @@ fi
 
 # ── OpenClaw 모델 설정 ──
 echo "[1/3] OpenClaw 기본 모델을 $OPENCLAW_MODEL_ID 로 전환..."
-openclaw config set agents.defaults.model "$OPENCLAW_MODEL_ID" 2>/dev/null || {
-  echo "WARN: openclaw config set 실패 — 수동 설정 필요"
-}
+if ! openclaw config set agents.defaults.model "$OPENCLAW_MODEL_ID" 2>/dev/null; then
+  echo "ERROR: openclaw config set 실패 — 모델 설정 불가. 벤치마크를 중단합니다."
+  echo "  수동 설정: openclaw config set agents.defaults.model $OPENCLAW_MODEL_ID"
+  exit 1
+fi
 
 # ── PinchBench 실행 ──
 echo "[2/3] PinchBench 실행 중 (full 24 태스크, 약 20~60분 소요)..."
@@ -199,8 +201,30 @@ with open('$RESULT_FILE', 'w') as f:
   fi
 else
   echo ""
-  echo "결과 디렉토리 내용:"
-  ls -la "$RUN_OUTPUT_DIR" 2>/dev/null || echo "  (디렉토리 비어있음)"
-  echo "WARN: 결과 JSON 파일을 찾지 못했습니다."
+  echo "========================================="
+  echo "  🚨 PinchBench 결과 없음 — 진단"
+  echo "========================================="
+  echo ""
+  echo "결과 디렉토리 ($RUN_OUTPUT_DIR):"
+  ls -la "$RUN_OUTPUT_DIR" 2>/dev/null || echo "  (디렉토리 자체가 없음)"
+  echo ""
+  echo "로그 파일 마지막 30줄:"
+  LOG_FILE="$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
+  if [ -f "$LOG_FILE" ]; then
+    tail -30 "$LOG_FILE"
+  else
+    echo "  (로그 파일 없음)"
+  fi
+  echo ""
+  echo "현재 OpenClaw 기본 모델:"
+  openclaw config get agents.defaults.model 2>/dev/null || echo "  (조회 실패)"
+  echo ""
+  echo "가능한 원인:"
+  echo "  1. 모델 API 인증 실패 (API 키 만료, 잘못된 엔드포인트)"
+  echo "  2. 모델이 응답하지 않음 (타임아웃, rate limit)"
+  echo "  3. PinchBench 내부 오류 (uv run 실패)"
+  echo "  4. 디스크 공간 부족"
+  echo ""
+  echo "디스크: $(df -h /home 2>/dev/null | tail -1 | awk '{print $4 " 남음"}')"
   exit 1
 fi
