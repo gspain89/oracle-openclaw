@@ -1,8 +1,8 @@
 {
   "meta": {
-    "last_updated": "2026-04-07T14:37:06Z",
-    "total_runs": 3,
-    "generated_at": "2026-04-07T14:37:06Z",
+    "last_updated": "2026-04-07T14:49:00Z",
+    "total_runs": 2,
+    "generated_at": "2026-04-07T14:49:00Z",
     "_new_from_raw": 1
   },
   "models": [
@@ -32,12 +32,6 @@
           "average": 48.0,
           "std": 0.0,
           "runs": [
-            {
-              "score": 48.0,
-              "completed": 9,
-              "total": 10,
-              "date": "2026-04-07"
-            },
             {
               "score": 48.0,
               "completed": 9,

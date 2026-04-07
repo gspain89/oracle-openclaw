@@ -1,9 +1,9 @@
 {
   "meta": {
-    "generated_at": "2026-04-07T14:37:06Z",
-    "total": 8,
-    "included": 3,
-    "excluded": 5
+    "generated_at": "2026-04-07T14:49:00Z",
+    "total": 5,
+    "included": 2,
+    "excluded": 3
   },
   "runs": [
     {
@@ -18,69 +18,8 @@
       "included": true
     },
     {
-      "file": "results/raw/korean/solar-pro3_20260407-053225/results.json",
-      "rm_path": "results/raw/korean/solar-pro3_20260407-053225",
-      "benchmark": "clawbench_ko",
-      "model_id": "solar-pro3",
-      "score": 84.6,
-      "completed": 1,
-      "total": 1,
-      "date": "2026-04-07",
-      "included": false,
-      "skip_reason": "부분 실행 (1/10 태스크)",
-      "categories": {
-        "data_processing": 84.6
-      }
-    },
-    {
-      "file": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry/results.json",
-      "rm_path": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry",
-      "benchmark": "clawbench_ko",
-      "model_id": "solar-pro3",
-      "score": 0.0,
-      "completed": 0,
-      "total": 1,
-      "date": "2026-04-07",
-      "included": false,
-      "skip_reason": "부분 실행 (1/10 태스크)",
-      "categories": {
-        "data_processing": 0.0
-      }
-    },
-    {
-      "file": "results/raw/korean/deepseek-reasoner_20260407-060652/results.json",
-      "rm_path": "results/raw/korean/deepseek-reasoner_20260407-060652",
-      "benchmark": "clawbench_ko",
-      "model_id": "deepseek-reasoner",
-      "score": 100.0,
-      "completed": 1,
-      "total": 1,
-      "date": "2026-04-07",
-      "included": false,
-      "skip_reason": "부분 실행 (1/10 태스크)",
-      "categories": {
-        "data_processing": 100.0
-      }
-    },
-    {
       "file": "results/raw/korean/upstage_solar-pro3_20260407-140921.json",
       "rm_path": "results/raw/korean/upstage_solar-pro3_20260407-140921.json",
-      "benchmark": "clawbench_ko",
-      "model_id": "solar-pro3",
-      "score": 48.0,
-      "completed": 9,
-      "total": 10,
-      "date": "2026-04-07",
-      "included": true,
-      "categories": {
-        "data_processing": 32.3,
-        "document_generation": 74.0,
-        "korean_system": 43.0
-      }
-    },
-    {
-      "file": "results/raw/korean/upstage_solar-pro3_20260407-140921/results.json",
-      "rm_path": "results/raw/korean/upstage_solar-pro3_20260407-140921",
       "benchmark": "clawbench_ko",
       "model_id": "solar-pro3",
       "score": 48.0,
@@ -122,6 +61,21 @@
       "skip_reason": "부분 실행 (1/10 태스크)",
       "categories": {
         "data_processing": 100.0
+      }
+    },
+    {
+      "file": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry/results.json",
+      "rm_path": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry",
+      "benchmark": "clawbench_ko",
+      "model_id": "solar-pro3",
+      "score": 0.0,
+      "completed": 0,
+      "total": 1,
+      "date": "2026-04-07",
+      "included": false,
+      "skip_reason": "부분 실행 (1/10 태스크)",
+      "categories": {
+        "data_processing": 0.0
       }
     }
   ]
