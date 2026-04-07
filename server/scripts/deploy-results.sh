@@ -37,7 +37,7 @@ models = data['models']
 pb = sum(1 for m in models if m['scores'].get('pinchbench'))
 ko = sum(1 for m in models if m['scores'].get('clawbench_ko'))
 runs = data['meta'].get('total_runs', 0)
-print(f'  ��델: {len(models)}개')
+print(f'  모델: {len(models)}개')
 print(f'  PinchBench: {pb}개 모델')
 print(f'  ClawBench-KO: {ko}개 모델')
 print(f'  총 실행: {runs}회')
