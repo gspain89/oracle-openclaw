@@ -82,7 +82,7 @@ fi
 # ── Dry run ──
 if [ "$DRY_RUN" = "--dry-run" ]; then
   echo "[DRY RUN] 실제 실행하지 않음"
-  echo "  명령어: cd $PINCHBENCH_DIR && uv run scripts/benchmark.py --model $OPENCLAW_MODEL_ID --output-dir $RUN_OUTPUT_DIR --no-upload --suite automated-only"
+  echo "  명령어: cd $PINCHBENCH_DIR && uv run scripts/benchmark.py --model $OPENCLAW_MODEL_ID --output-dir $RUN_OUTPUT_DIR --no-upload --no-fail-fast"
   exit 0
 fi
 
@@ -93,7 +93,7 @@ openclaw config set agents.defaults.model "$OPENCLAW_MODEL_ID" 2>/dev/null || {
 }
 
 # ── PinchBench 실행 ──
-echo "[2/3] PinchBench 실행 중 (automated-only 태스크, 약 11~40분 소요)..."
+echo "[2/3] PinchBench 실행 중 (full 24 태스크, 약 20~60분 소요)..."
 echo "  시작: $(date -u '+%H:%M:%S UTC')"
 
 START_SEC=$(date +%s)
@@ -102,13 +102,12 @@ cd "$PINCHBENCH_DIR"
 
 # PinchBench 실행 — uv run으로 benchmark.py 호출
 # --no-upload: 외부 서버 업로드 방지
-# --suite automated-only: 자동 채점 태스크만 (judge 모델 비용 절약)
 # --no-fail-fast: 실패해도 나머지 태스크 계속
+# full 24 tasks 실행 (judge 태스크 포함)
 uv run scripts/benchmark.py \
   --model "$OPENCLAW_MODEL_ID" \
   --output-dir "$RUN_OUTPUT_DIR" \
   --no-upload \
-  --suite automated-only \
   --no-fail-fast \
   2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
 

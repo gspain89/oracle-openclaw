@@ -19,44 +19,54 @@ const modelsJson = JSON.stringify(models);
     <p>두 모델의 벤치마크 결과를 나란히 비교</p>
   </div>
 
-  <div class="compare-selectors">
-    <div class="field-group">
-      <label class="field-label" for="model-a">모델 A</label>
-      <select id="model-a">
-        {models.map((m: any, i: number) => <option value={i} selected={i === 0}>{m.name}</option>)}
-      </select>
-    </div>
-    <div class="compare-vs">VS</div>
-    <div class="field-group">
-      <label class="field-label" for="model-b">모델 B</label>
-      <select id="model-b">
-        {models.map((m: any, i: number) => <option value={i} selected={i === 1}>{m.name}</option>)}
-      </select>
-    </div>
-  </div>
-
-  <div class="compare-grid">
-    <div class="card">
-      <h3>레이더 비교</h3>
-      <div class="radar-wrap">
-        <canvas id="radar-chart" width="400" height="340"></canvas>
+  {models.length >= 2 ? (
+    <div class="compare-selectors">
+      <div class="field-group">
+        <label class="field-label" for="model-a">모델 A</label>
+        <select id="model-a">
+          {models.map((m: any, i: number) => <option value={i} selected={i === 0}>{m.name}</option>)}
+        </select>
+      </div>
+      <div class="compare-vs">VS</div>
+      <div class="field-group">
+        <label class="field-label" for="model-b">모델 B</label>
+        <select id="model-b">
+          {models.map((m: any, i: number) => <option value={i} selected={i === 1}>{m.name}</option>)}
+        </select>
       </div>
     </div>
-    <div class="card">
-      <h3>지표별 비교</h3>
-      <div id="metric-bars" class="metric-bars"></div>
-    </div>
-  </div>
 
-  <div class="card detail-card">
-    <h3>상세 정보</h3>
-    <table class="detail-table" id="detail-table">
-      <thead>
-        <tr><th>항목</th><th id="th-a">모델 A</th><th id="th-b">모델 B</th></tr>
-      </thead>
-      <tbody id="detail-body"></tbody>
-    </table>
-  </div>
+    <div class="compare-grid">
+      <div class="card">
+        <h3>레이더 비교</h3>
+        <div class="radar-wrap">
+          <canvas id="radar-chart" width="400" height="340"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h3>지표별 비교</h3>
+        <div id="metric-bars" class="metric-bars"></div>
+      </div>
+    </div>
+
+    <div class="card detail-card">
+      <h3>상세 정보</h3>
+      <table class="detail-table" id="detail-table">
+        <thead>
+          <tr><th>항목</th><th id="th-a">모델 A</th><th id="th-b">모델 B</th></tr>
+        </thead>
+        <tbody id="detail-body"></tbody>
+      </table>
+    </div>
+  ) : (
+    <div class="card">
+      <div class="empty-state">
+        <div class="icon">VS</div>
+        <h3>비교할 모델이 없습니다</h3>
+        <p>벤치마크 결과가 2개 이상 수집되면 모델 비교가 가능합니다.</p>
+      </div>
+    </div>
+  )}
 </Layout>
 
 <style is:global>

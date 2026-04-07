@@ -40,44 +40,54 @@ const scatterData = JSON.stringify(scored.map((m: any) => ({
     <p>성능 대비 비용이 가장 효율적인 모델 순위</p>
   </div>
 
-  <div class="cost-grid">
-    <div class="card chart-card">
-      <h3>성능 vs 비용</h3>
-      <p class="chart-desc">X축: 실행 비용(USD/회), Y축: 종합 점수. 좌상단이 최적</p>
-      <div class="chart-wrap">
-        <canvas id="scatter-chart" height="320"></canvas>
+  {scored.length > 0 ? (
+    <div class="cost-grid">
+      <div class="card chart-card">
+        <h3>성능 vs 비용</h3>
+        <p class="chart-desc">X축: 실행 비용(USD/회), Y축: 종합 점수. 좌상단이 최적</p>
+        <div class="chart-wrap">
+          <canvas id="scatter-chart" height="320"></canvas>
+        </div>
       </div>
-    </div>
 
-    <div class="card efficiency-card">
-      <h3>비용 효율 순위</h3>
-      <div class="eff-list">
-        {efficiency.map((m: any, i: number) => {
-          const maxFiniteEff = efficiency.find((e: any) => e.efficiency !== Infinity)?.efficiency || 1;
-          const barW = m.efficiency === Infinity ? 100 : Math.min((m.efficiency / maxFiniteEff) * 100, 100);
-          return (
-            <div class="eff-row">
-              <span class="eff-rank">{i + 1}</span>
-              <div class="eff-info">
-                <span class="eff-name">
-                  {m.name}
-                  {m.free && <span class="free-tag">FREE</span>}
-                </span>
-                <span class="eff-detail">
-                  {m.cost === 0
-                    ? `${m.score.toFixed(1)}점 / 무료`
-                    : `${m.score.toFixed(1)}점 / $${m.cost.toFixed(2)} / ${m.efficiency.toFixed(0)}점/$`}
-                </span>
+      <div class="card efficiency-card">
+        <h3>비용 효율 순위</h3>
+        <div class="eff-list">
+          {efficiency.map((m: any, i: number) => {
+            const maxFiniteEff = efficiency.find((e: any) => e.efficiency !== Infinity)?.efficiency || 1;
+            const barW = m.efficiency === Infinity ? 100 : Math.min((m.efficiency / maxFiniteEff) * 100, 100);
+            return (
+              <div class="eff-row">
+                <span class="eff-rank">{i + 1}</span>
+                <div class="eff-info">
+                  <span class="eff-name">
+                    {m.name}
+                    {m.free && <span class="free-tag">FREE</span>}
+                  </span>
+                  <span class="eff-detail">
+                    {m.cost === 0
+                      ? `${m.score.toFixed(1)}점 / 무료`
+                      : `${m.score.toFixed(1)}점 / $${m.cost.toFixed(2)} / ${m.efficiency.toFixed(0)}점/$`}
+                  </span>
+                </div>
+                <div class="eff-bar-track">
+                  <div class="eff-bar-fill" style={`width:${barW.toFixed(1)}%`}></div>
+                </div>
               </div>
-              <div class="eff-bar-track">
-                <div class="eff-bar-fill" style={`width:${barW.toFixed(1)}%`}></div>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
-  </div>
+  ) : (
+    <div class="card">
+      <div class="empty-state">
+        <div class="icon">$</div>
+        <h3>비용 효율 데이터 없음</h3>
+        <p>벤치마크 결과가 수집되면 비용 효율 분석이 표시됩니다.</p>
+      </div>
+    </div>
+  )}
 </Layout>
 
 <style>

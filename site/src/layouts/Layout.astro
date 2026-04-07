@@ -10,11 +10,11 @@ const base = rawBase.endsWith('/') ? rawBase : rawBase + '/';
 const path = Astro.url.pathname;
 
 const nav = [
-  { href: '',        label: '리더보드' },
-  { href: 'compare', label: '모델 비교' },
-  { href: 'cost',    label: '비용 효율' },
-  { href: 'history', label: '그래프' },
-  { href: 'korean',  label: '한국어' },
+  { href: '',           label: '리더보드' },
+  { href: 'compare',    label: '모델 비교' },
+  { href: 'cost',       label: '비용 효율' },
+  { href: 'pinchbench', label: 'PinchBench' },
+  { href: 'korean',     label: 'ClawBench-KO' },
 ];
 
 function isActive(page: string) {

@@ -1,0 +1,162 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+let data: any = { meta: {}, models: [] };
+try {
+  const raw = readFileSync(resolve(process.cwd(), '..', 'results', 'normalized', 'leaderboard.json'), 'utf-8');
+  data = JSON.parse(raw);
+} catch {}
+
+const models = data.models;
+const hasPB = models.some((m: any) => m.scores?.pinchbench);
+
+const ranked = [...models]
+  .filter((m: any) => m.scores?.pinchbench)
+  .sort((a: any, b: any) => b.scores.pinchbench.best - a.scores.pinchbench.best);
+---
+
+<Layout title="PinchBench">
+  <div class="page-header">
+    <h1>Pinch<span class="accent">Bench</span></h1>
+    <p>24-task agent coding benchmark &mdash; automated + judge graded</p>
+  </div>
+
+  {hasPB ? (
+    <section class="chart-card card">
+      <h3>모델별 종합 점수 (Best / Average)</h3>
+      <div class="bar-legend">
+        <span class="legend-item"><span class="legend-dot best"></span> Best</span>
+        <span class="legend-item"><span class="legend-dot avg"></span> Average</span>
+      </div>
+      <div class="bar-chart">
+        {ranked.map((m: any, i: number) => (
+          <div class="bar-row" style={`--delay: ${i * 0.06}s`}>
+            <div class="bar-rank">
+              <span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span>
+            </div>
+            <div class="bar-info">
+              <span class="bar-model-name">{m.name}</span>
+              <span class="bar-provider">{m.provider_label}{m.free ? ' ' : ''}{m.free && <span class="free-tag">FREE</span>}</span>
+            </div>
+            <div class="bar-tracks">
+              <div class="bar-track">
+                <div class="bar-fill best" style={`width:${m.scores.pinchbench.best}%`}>
+                  <span class="bar-value">{m.scores.pinchbench.best.toFixed(1)}</span>
+                </div>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill avg" style={`width:${m.scores.pinchbench.average}%`}>
+                  <span class="bar-value">{m.scores.pinchbench.average.toFixed(1)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  ) : (
+    <div class="card">
+      <div class="empty-state">
+        <div class="icon">PB</div>
+        <h3>PinchBench 결과 없음</h3>
+        <p>벤치마크 실행 후 결과가 수집되면 여기에 표시됩니다.</p>
+      </div>
+    </div>
+  )}
+
+  {hasPB && (
+    <div class="card snapshot-card" style="margin-top:24px;">
+      <h3>실행 상세 (Best / Average / Std)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>모델</th>
+              <th>Best</th>
+              <th>Average</th>
+              <th>Std</th>
+              <th>실행 횟수</th>
+              <th>평균 속도</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((m: any, i: number) => {
+              const pb = m.scores.pinchbench;
+              return (
+                <tr>
+                  <td class="col-rank"><span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span></td>
+                  <td>
+                    <span class="model-name">{m.name}</span>
+                    {m.free && <span class="free-tag">FREE</span>}
+                  </td>
+                  <td class="score-mono score-best">{pb.best.toFixed(1)}%</td>
+                  <td class="score-mono">{pb.average.toFixed(1)}%</td>
+                  <td class="score-mono std-val">&plusmn;{pb.std.toFixed(2)}</td>
+                  <td class="score-mono">{pb.runs?.length || 1}회</td>
+                  <td class="score-mono">{m.avg_seconds_per_task ? `${m.avg_seconds_per_task}s/task` : <span class="no-data">&mdash;</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )}
+
+  <div class="card about-card" style="margin-top:24px;">
+    <h3>PinchBench 개요</h3>
+    <div class="about-grid">
+      <div class="about-item">
+        <div class="about-label">태스크 수</div>
+        <p>24개 (full suite)</p>
+      </div>
+      <div class="about-item">
+        <div class="about-label">채점 방식</div>
+        <p>Automated (자동 검증) + Judge graded (LLM 판정, GPT-5.3)</p>
+      </div>
+      <div class="about-item">
+        <div class="about-label">측정 항목</div>
+        <p>코드 생성, 디버깅, 파일 조작, 도구 사용, 추론 등 에이전트 코딩 역량 종합 평가</p>
+      </div>
+      <div class="about-item">
+        <div class="about-label">실행 환경</div>
+        <p>Oracle Cloud ARM 4 OCPU / 24GB RAM, OpenClaw 게이트웨이 경유</p>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .chart-card { animation: fade-up 0.5s var(--ease-out-expo) backwards; }
+  .snapshot-card { animation: fade-up 0.5s var(--ease-out-expo) 0.1s backwards; }
+  .about-card { animation: fade-up 0.5s var(--ease-out-expo) 0.2s backwards; }
+  .col-rank { width: 44px; text-align: center; }
+  td.col-rank { text-align: center; }
+  .std-val { color: var(--text-3); font-size: 0.78rem; }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .about-item {
+    padding: 14px;
+    background: var(--bg-card-alt);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .about-label {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--accent);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .about-item p { font-size: 0.82rem; color: var(--text-2); line-height: 1.5; }
+</style>
