@@ -342,6 +342,9 @@ uv run scripts/benchmark.py \
 
 ### 실행 예시
 
+> **참고**: `run-pinchbench.sh`는 항상 full 24 tasks를 실행한다.
+> 아래는 PinchBench CLI를 직접 호출하는 경우의 예시다.
+
 ```bash
 # automated 태스크만 빠르게 테스트 (judge 불필요, ~5분)
 uv run scripts/benchmark.py \
@@ -494,10 +497,11 @@ tail -f /tmp/benchmark-all.log
 | 벤치마크 | 태스크 | 1회 | 3회 |
 |----------|--------|-----|-----|
 | ClawBench-KO | 10 | ~15분 | ~45분 |
-| PinchBench | 24 | ~40분 | ~120분 |
+| PinchBench (full) | 24 | ~40분 | ~120분 |
 | **합계** | 34 | ~55분 | ~165분 |
 
 DashScope 모델 기준. OpenRouter free-tier는 2~3배 더 걸릴 수 있다.
+`run-pinchbench.sh`는 항상 full 24 tasks를 실행한다 (judge 포함).
 
 ## 10. 전체 파이프라인 빠른 참조
 
