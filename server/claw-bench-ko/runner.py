@@ -224,14 +224,47 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
 
     if verbose:
         if agent_result["stdout"]:
-            logger.info("    [VERBOSE] Stdout (500자): %s",
-                         agent_result["stdout"][:500])
+            logger.info("    [VERBOSE] Stdout (전문): %s",
+                         agent_result["stdout"][:2000])
 
     # 채점
     from grader import grade_task
     grade_result = grade_task(
         task, workspace, agent_result["stdout"], judge_model
     )
+
+    # 0점 진단 — stdout에 결과가 있지만 파일로 저장 안 된 경우 등 원인 특정
+    if grade_result["score"] == 0:
+        output_file = task.get("grading", {}).get("automated", {}).get("output_file", "")
+        has_output_file = output_file and (workspace / output_file).exists()
+
+        logger.warning("    ── 0점 진단 ──")
+        logger.warning("    returncode: %d | timed_out: %s | duration: %.1fs",
+                        agent_result["returncode"],
+                        agent_result["timed_out"],
+                        agent_result["duration_seconds"])
+
+        if output_file and not has_output_file:
+            logger.warning("    기대 출력 파일 '%s' 미존재", output_file)
+            # stdout에 JSON이 포함돼있는지 확인 — 파일 대신 채팅으로 응답한 경우
+            stdout = agent_result["stdout"]
+            if stdout and ("{" in stdout or "[" in stdout):
+                logger.warning("    ⚠️ stdout에 JSON 포함 — 에이전트가 파일 대신 채팅으로 응답한 것으로 추정")
+                logger.warning("    stdout (앞 800자): %s", stdout[:800])
+            elif not stdout:
+                logger.warning("    ⚠️ stdout 비어있음 — 에이전트가 응답하지 않음")
+            else:
+                logger.warning("    stdout (앞 500자): %s", stdout[:500])
+        elif has_output_file:
+            logger.warning("    출력 파일 '%s' 존재하나 채점 실패 — 내용 오류", output_file)
+            try:
+                content = (workspace / output_file).read_text(encoding="utf-8")[:500]
+                logger.warning("    파일 내용 (앞 500자): %s", content)
+            except Exception:
+                pass
+
+        if agent_result["stderr"]:
+            logger.warning("    stderr: %s", agent_result["stderr"][:500])
 
     return {
         "task_id": task_id,
