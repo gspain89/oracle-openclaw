@@ -1,9 +1,61 @@
 {
   "meta": {
-    "last_updated": "2026-04-07T06:02:31Z",
-    "total_runs": 0,
-    "generated_at": "2026-04-07T06:02:31Z",
-    "_new_from_raw": 0
+    "last_updated": "2026-04-07T14:37:06Z",
+    "total_runs": 3,
+    "generated_at": "2026-04-07T14:37:06Z",
+    "_new_from_raw": 1
   },
-  "models": []
+  "models": [
+    {
+      "id": "solar-pro3",
+      "name": "Solar Pro 3",
+      "provider": "upstage",
+      "provider_label": "Upstage",
+      "free": false,
+      "avg_seconds_per_task": 89.0,
+      "scores": {
+        "pinchbench": {
+          "best": 62.1,
+          "average": 62.1,
+          "std": 0.0,
+          "runs": [
+            {
+              "score": 62.1,
+              "completed": 16,
+              "total": 24,
+              "date": "2026-04-07"
+            }
+          ]
+        },
+        "clawbench_ko": {
+          "best": 48.0,
+          "average": 48.0,
+          "std": 0.0,
+          "runs": [
+            {
+              "score": 48.0,
+              "completed": 9,
+              "total": 10,
+              "date": "2026-04-07"
+            },
+            {
+              "score": 48.0,
+              "completed": 9,
+              "total": 10,
+              "date": "2026-04-07"
+            }
+          ],
+          "categories": {
+            "data_processing": 32.3,
+            "document_generation": 74.0,
+            "korean_system": 43.0
+          }
+        },
+        "composite": {
+          "best": 55.05,
+          "average": 55.05
+        }
+      }
+    }
+  ]
 }
