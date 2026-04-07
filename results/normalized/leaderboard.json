@@ -1,4 +1,9 @@
 {
-  "generated_at": "",
+  "meta": {
+    "generated_at": null,
+    "last_updated": null,
+    "total_runs": 0,
+    "note": "실측 데이터 없음 — 벤치마크 실행 후 갱신됩니다."
+  },
   "models": []
 }
