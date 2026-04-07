@@ -579,6 +579,92 @@ git pull origin main
               └── https://gspain89.github.io/oracle-openclaw/
 ```
 
+## 11. 에이전트 ID와 세션 관리
+
+### 에이전트 ID 생성 규칙
+
+ClawBench-KO의 `runner.py`는 벤치마크 실행 시 OpenClaw 에이전트를 동적으로 생성/삭제한다. 에이전트 ID는 **결정적(deterministic)**이다:
+
+```
+cb-{model_hash}-{task_id}-{run_index}
+```
+
+- `model_hash`: 모델 슬러그(예: `upstage-solar-pro3`)의 MD5 해시 앞 6자리
+- `task_id`: 태스크 ID (예: `addr_parse`)
+- `run_index`: 반복 실행 인덱스 (0부터 시작)
+
+예시: `upstage/solar-pro3`로 `addr_parse`를 실행하면 → `cb-e2c8c7-addr_parse-0`
+
+같은 모델 + 같은 태스크 + 같은 run index는 항상 같은 에이전트 ID를 생성한다. 이 에이전트는 OpenClaw 게이트웨이에 등록되는 것과 동일한 에이전트다 (`openclaw agents list`에서 확인 가능).
+
+### 세션 정리 (OpenClaw 버그 workaround)
+
+OpenClaw의 `agents delete --force`가 세션 파일을 완전히 삭제하지 못하는 버그가 있다 (`Failed to move to Trash` 메시지). 에이전트 ID가 재사용되면 이전 대화 히스토리가 누적되어 모델이 혼란에 빠진다.
+
+runner.py의 `delete_agent()`가 `shutil.rmtree()`로 `~/.openclaw/agents/cb-*/` 디렉토리를 직접 삭제하여 이 문제를 우회한다. 수동 정리가 필요하면:
+
+```bash
+# 벤치마크 에이전트 세션 전체 정리
+rm -rf ~/.openclaw/agents/cb-*/sessions/*
+rm -rf ~/.openclaw/agents/cb-*/agent/*
+```
+
+### Upstage 프로바이더 필수 설정
+
+Upstage API는 OpenAI의 `store` 파라미터를 지원하지 않는다. OpenClaw이 이 파라미터를 기본으로 전송하면 `400 Unrecognized request arguments supplied: store` 에러가 발생한다. 모델 정의에 반드시 `compat.supportsStore: false`를 설정해야 한다:
+
+```json
+{
+  "id": "solar-pro3",
+  "reasoning": false,
+  "compat": { "supportsStore": false }
+}
+```
+
+## 12. 결과 관리
+
+### 개별 실행(run) 결과 파일
+
+각 벤치마크 실행은 타임스탬프가 포함된 디렉토리/파일로 저장된다:
+
+```
+results/raw/korean/solar-pro3_20260407-020857/results.json    ← 디렉토리 형태
+results/raw/korean/solar-pro3_20260407-020857.json            ← 플랫 파일 복사본
+```
+
+### normalize.py의 집계 방식
+
+`normalize.py`는 `results/raw/` 하위의 **모든** results.json을 수집하여 모델별로 그룹핑한 뒤 집계한다:
+
+- `best`: 전체 실행 중 최고 점수
+- `average`: 전체 실행의 평균
+- `std`: 표준편차
+
+예를 들어 solar-pro3 결과 파일이 4개면 4개 전부 평균/best/std로 집계된다. 16개여도 동일하다. **results/raw/ 에 있는 모든 파일이 리더보드에 포함된다.**
+
+### 특정 실행 결과 삭제
+
+잘못된 결과를 리더보드에서 제외하려면:
+
+```bash
+# 1) 해당 결과 파일 삭제
+rm -rf results/raw/korean/solar-pro3_20260407-020857*
+
+# 2) normalize.py 재실행 → leaderboard.json 갱신
+python3 server/python/normalize.py
+
+# 3) 배포 (사이트 반영)
+bash server/scripts/deploy-results.sh
+```
+
+### 리더보드 미포함 조건
+
+다음 경우 결과가 리더보드에 포함되지 않는다:
+
+- results.json이 없는 빈 디렉토리 (FAIL FAST 종료, 중간 중단 등)
+- `server/config/models.json`에 해당 모델 ID가 없는 경우 (WARN 로그 출력 후 제외)
+- normalize.py가 아직 실행되지 않은 경우 (leaderboard.json 미갱신)
+
 ### E. 주요 경로 정리
 
 | 항목 | 경로 |
