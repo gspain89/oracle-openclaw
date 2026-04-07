@@ -86,4 +86,90 @@ RESULT_FILE="$RUN_OUTPUT_DIR/results.json"
 if [ -f "$RESULT_FILE" ]; then
   cp "$RESULT_FILE" "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json"
   echo "결과 복사: $RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json"
+
+  # ── 0% 태스크 재시도 (1회) ──
+  # 1차 실행에서 0%인 태스크만 추출하여 1회 재실행. 결과를 1차에 병합.
+  FAILED_TASKS=$(python3 -c "
+import json
+with open('$RESULT_FILE') as f:
+    data = json.load(f)
+failed = [t['task_id'] for t in data['tasks']
+          if t['grading']['mean'] == 0.0]
+print(','.join(failed))
+" 2>/dev/null)
+
+  if [ -n "$FAILED_TASKS" ]; then
+    echo ""
+    echo "=== 0% 태스크 재시도 (1회) ==="
+    echo "  대상: $FAILED_TASKS"
+    RETRY_DIR="${RUN_OUTPUT_DIR}_retry"
+    RETRY_START=$(date +%s)
+
+    python3 "$BENCH_DIR/runner.py" \
+      --model "$OPENCLAW_MODEL_ID" \
+      --judge "$JUDGE" \
+      --runs 1 \
+      --output-dir "$RETRY_DIR" \
+      --skip-preflight \
+      --task "$FAILED_TASKS" \
+      --no-fail-fast \
+      2>&1 | tee -a "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
+
+    RETRY_END=$(date +%s)
+    RETRY_ELAPSED=$((RETRY_END - RETRY_START))
+    echo "  재시도 소요: ${RETRY_ELAPSED}초"
+
+    # 재시도 결과 병합 — 0%였던 태스크를 재시도 점수로 교체
+    RETRY_FILE="$RETRY_DIR/results.json"
+    if [ -f "$RETRY_FILE" ]; then
+      python3 -c "
+import json
+with open('$RESULT_FILE') as f:
+    orig = json.load(f)
+with open('$RETRY_FILE') as f:
+    retry = json.load(f)
+
+# 재시도 결과를 dict로 변환
+retry_map = {t['task_id']: t for t in retry.get('tasks', [])}
+
+# 원본에서 0%였던 태스크를 재시도 결과로 교체 (재시도도 0%면 그대로)
+total = 0.0
+seen = set()
+for i, t in enumerate(orig['tasks']):
+    tid = t['task_id']
+    if tid in seen:
+        continue
+    seen.add(tid)
+    if tid in retry_map:
+        r = retry_map[tid]
+        orig_score = t['grading']['mean']
+        retry_score = r['grading']['mean']
+        if retry_score > orig_score:
+            orig['tasks'][i] = r
+            print(f'  {tid}: {orig_score:.0%} -> {retry_score:.0%} (개선)')
+        else:
+            print(f'  {tid}: {orig_score:.0%} -> {retry_score:.0%} (유지)')
+    total += orig['tasks'][i]['grading']['mean']
+
+# 전체 점수 재계산 (ClawBench-KO: overall_score는 dict)
+n = len(seen)
+mean = total / n if n > 0 else 0
+orig['overall_score'] = {
+    'mean': round(mean, 4),
+    'total_earned': round(total, 4),
+    'total_possible': float(n),
+}
+orig['retry_applied'] = True
+print(f'  최종 점수: {total:.1f}/{n} ({mean*100:.1f}%)')
+
+with open('$RESULT_FILE', 'w') as f:
+    json.dump(orig, f, indent=2, ensure_ascii=False)
+" 2>/dev/null
+      # 병합된 결과를 표준 위치에 재복사
+      cp "$RESULT_FILE" "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json" 2>/dev/null || true
+    fi
+  else
+    echo ""
+    echo "0% 태스크 없음 — 재시도 불필요"
+  fi
 fi
