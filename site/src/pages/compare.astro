@@ -38,22 +38,24 @@ const modelsJson = JSON.stringify(models);
 
     <div class="compare-grid">
       <div class="card">
-        <h3>레이더 비교</h3>
+        <h3>카테고리별 레이더</h3>
+        <p class="card-sub">PinchBench 5개 + ClawBench-KO 3개 카테고리</p>
         <div class="radar-wrap">
-          <canvas id="radar-chart" width="400" height="340"></canvas>
+          <canvas id="radar-chart" width="420" height="380"></canvas>
         </div>
       </div>
       <div class="card">
-        <h3>지표별 비교</h3>
-        <div id="metric-bars" class="metric-bars"></div>
+        <h3>카테고리별 비교</h3>
+        <p class="card-sub">각 카테고리에서 두 모델 점수를 나란히 비교</p>
+        <div id="cat-bars" class="cat-bars"></div>
       </div>
     </div>
 
     <div class="card detail-card">
-      <h3>상세 정보</h3>
+      <h3>상세 비교</h3>
       <table class="detail-table" id="detail-table">
         <thead>
-          <tr><th>항목</th><th id="th-a">모델 A</th><th id="th-b">모델 B</th></tr>
+          <tr><th class="dt-label">항목</th><th id="th-a">모델 A</th><th id="th-b">모델 B</th></tr>
         </thead>
         <tbody id="detail-body"></tbody>
       </table>
@@ -72,14 +74,12 @@ const modelsJson = JSON.stringify(models);
 <style is:global>
   .compare-selectors {
     display: flex; align-items: flex-end; gap: 20px;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
     animation: fade-up 0.5s var(--ease-out-expo) backwards;
   }
   .compare-vs {
-    font-family: var(--font-display);
-    font-size: 1.3rem;
-    padding-bottom: 11px;
-    color: var(--text-3);
+    font-family: var(--font-display); font-size: 1.3rem;
+    padding-bottom: 11px; color: var(--text-3);
   }
   .compare-grid {
     display: grid; grid-template-columns: 1fr 1fr;
@@ -87,31 +87,59 @@ const modelsJson = JSON.stringify(models);
     animation: fade-up 0.5s var(--ease-out-expo) 0.1s backwards;
   }
   .detail-card { animation: fade-up 0.5s var(--ease-out-expo) 0.2s backwards; }
+  .card-sub { font-size: 0.72rem; color: var(--text-3); margin: 2px 0 0; }
+
   @media (max-width: 768px) {
     .compare-selectors { flex-direction: column; align-items: stretch; }
     .compare-vs { text-align: center; padding: 0; }
     .compare-grid { grid-template-columns: 1fr; }
   }
-  .radar-wrap { margin-top: 8px; display: flex; justify-content: center; }
-  .metric-bars { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
-  .metric-row { display: flex; flex-direction: column; gap: 5px; }
-  .metric-label {
-    font-size: 0.72rem; font-weight: 600; color: var(--text-3);
-    text-transform: uppercase; letter-spacing: 0.06em;
+
+  .radar-wrap { margin-top: 12px; display: flex; justify-content: center; }
+
+  /* 카테고리 바 */
+  .cat-bars { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+  .cb-group-label {
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+    color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 4px; margin-top: 6px;
   }
-  .metric-track { display: flex; height: 28px; gap: 4px; border-radius: 6px; overflow: hidden; }
-  .metric-fill {
-    height: 100%; border-radius: 6px; min-width: 3px;
-    display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
-    font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; color: var(--text-inv);
+  .cb-row { display: flex; flex-direction: column; gap: 3px; }
+  .cb-label {
+    font-size: 0.72rem; font-weight: 600; color: var(--text-2);
   }
-  .metric-fill.a { background: var(--bar-best); }
-  .metric-fill.b { background: var(--blue); }
-  .metric-fill.empty { background: var(--bg-track); flex: 1; }
+  .cb-track {
+    display: flex; gap: 3px; height: 22px; align-items: center;
+  }
+  .cb-fill {
+    height: 100%; border-radius: 4px; min-width: 2px;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 6px;
+    font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700;
+    color: white; transition: width 0.4s ease;
+  }
+  .cb-fill.a { background: #8c2416; }
+  .cb-fill.b { background: #2563a8; }
+  .cb-spacer { flex: 1; }
+  .cb-winner { box-shadow: 0 0 0 1.5px currentColor; }
+
+  /* 상세 테이블 */
   .detail-table { width: 100%; margin-top: 14px; }
-  .detail-table th, .detail-table td { padding: 10px 14px; font-size: 0.85rem; }
-  .detail-table td:first-child { color: var(--text-2); }
-  .winner { color: var(--accent); font-weight: 600; }
+  .detail-table th, .detail-table td {
+    padding: 7px 12px; font-size: 0.78rem;
+  }
+  .dt-label { width: 180px; }
+  .detail-table td:first-child {
+    color: var(--text-2); font-size: 0.74rem;
+  }
+  .winner { color: var(--accent); font-weight: 700; }
+  .dt-section {
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+    color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--border);
+  }
+  .dt-section td { border-top: 1px solid var(--border); }
 </style>
 
 <script is:inline define:vars={{ modelsJson }}>
@@ -121,52 +149,73 @@ const modelsJson = JSON.stringify(models);
     var selB = document.getElementById('model-b');
     var radarChart = null;
 
-    var METRICS = [
-      { key: 'pinchbench', label: 'PinchBench', max: 100, get: function(m) { return m.scores.pinchbench ? m.scores.pinchbench.best : 0; } },
-      { key: 'clawbench_ko', label: 'ClawBench-KO', max: 100, get: function(m) { return m.scores.clawbench_ko ? m.scores.clawbench_ko.best : 0; } },
-      { key: 'speed', label: '속도 (norm)', max: 100, get: function(m) {
-        var maxT = 55, minT = 15;
-        var t = m.avg_seconds_per_task || maxT;
-        return Math.max(0, Math.min(100, 100 - ((t - minT) / (maxT - minT)) * 100));
-      }},
+    var PB_CATS = [
+      { id: 'understanding', label: '이해/기억' },
+      { id: 'research', label: '조사/분석' },
+      { id: 'creation', label: '생성/작문' },
+      { id: 'execution', label: '실행/코딩' },
+      { id: 'basic', label: '기본/관리' },
     ];
+    var KO_CATS = [
+      { id: 'data_processing', label: '데이터 처리' },
+      { id: 'document_generation', label: '문서 생성' },
+      { id: 'korean_system', label: '한국 시스템' },
+    ];
+
+    function getCat(m, bench, catId) {
+      var s = m.scores[bench];
+      if (!s || !s.categories) return 0;
+      return s.categories[catId] || 0;
+    }
+    function getScore(m, bench, field) {
+      var s = m.scores[bench];
+      return s ? (s[field] || 0) : 0;
+    }
 
     function update() {
       var a = models[+selA.value] || null;
       var b = models[+selB.value] || null;
-      var dataA = METRICS.map(function(m) { return a ? m.get(a) : 0; });
-      var dataB = METRICS.map(function(m) { return b ? m.get(b) : 0; });
 
-      /* Chart.js Radar */
+      /* ── 레이더: 8개 카테고리 축 ── */
+      var allCats = PB_CATS.concat(KO_CATS);
+      var radarLabels = allCats.map(function(c) { return c.label; });
+      var radarA = allCats.map(function(c, i) {
+        var bench = i < 5 ? 'pinchbench' : 'clawbench_ko';
+        return a ? getCat(a, bench, c.id) : 0;
+      });
+      var radarB = allCats.map(function(c, i) {
+        var bench = i < 5 ? 'pinchbench' : 'clawbench_ko';
+        return b ? getCat(b, bench, c.id) : 0;
+      });
+
       var ctx = document.getElementById('radar-chart');
       if (radarChart) radarChart.destroy();
-
       radarChart = new Chart(ctx, {
         type: 'radar',
         data: {
-          labels: METRICS.map(function(m) { return m.label; }),
+          labels: radarLabels,
           datasets: [
             {
               label: a ? a.name : '—',
-              data: dataA,
-              backgroundColor: 'rgba(140, 36, 22, 0.1)',
+              data: radarA,
+              backgroundColor: 'rgba(140,36,22,0.12)',
               borderColor: '#8c2416',
               borderWidth: 2.5,
               pointBackgroundColor: '#8c2416',
               pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 5,
+              pointBorderWidth: 1.5,
+              pointRadius: 4,
             },
             {
               label: b ? b.name : '—',
-              data: dataB,
-              backgroundColor: 'rgba(37, 99, 168, 0.1)',
+              data: radarB,
+              backgroundColor: 'rgba(37,99,168,0.12)',
               borderColor: '#2563a8',
               borderWidth: 2.5,
               pointBackgroundColor: '#2563a8',
               pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 5,
+              pointBorderWidth: 1.5,
+              pointRadius: 4,
             }
           ]
         },
@@ -175,84 +224,117 @@ const modelsJson = JSON.stringify(models);
           maintainAspectRatio: true,
           scales: {
             r: {
-              beginAtZero: true,
-              max: 100,
-              ticks: {
-                stepSize: 20,
-                color: '#9e9082',
-                font: { family: 'IBM Plex Mono', size: 10 },
-                backdropColor: 'transparent',
-              },
-              grid: { color: 'rgba(120, 100, 70, 0.12)' },
-              angleLines: { color: 'rgba(120, 100, 70, 0.12)' },
-              pointLabels: {
-                color: '#6b5e50',
-                font: { family: 'Noto Sans KR', size: 12, weight: '500' },
-              },
+              beginAtZero: true, max: 100,
+              ticks: { stepSize: 25, color: '#9e9082', font: { family: 'IBM Plex Mono', size: 9 }, backdropColor: 'transparent' },
+              grid: { color: 'rgba(120,100,70,0.1)' },
+              angleLines: { color: 'rgba(120,100,70,0.1)' },
+              pointLabels: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 11, weight: '500' } },
             }
           },
           plugins: {
-            legend: {
-              labels: {
-                color: '#6b5e50',
-                font: { family: 'Noto Sans KR', size: 12 },
-                usePointStyle: true,
-                pointStyle: 'circle',
-              }
-            },
+            legend: { labels: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
             tooltip: {
-              backgroundColor: 'rgba(26, 20, 16, 0.92)',
-              titleColor: '#f0ead8',
-              bodyColor: '#f0ead8',
-              borderColor: 'rgba(120, 100, 70, 0.3)',
-              borderWidth: 1,
+              backgroundColor: 'rgba(26,20,16,0.92)',
+              titleColor: '#f0ead8', bodyColor: '#f0ead8',
+              borderColor: 'rgba(120,100,70,0.3)', borderWidth: 1,
               bodyFont: { family: 'IBM Plex Mono' },
+              callbacks: { label: function(c) { return c.dataset.label + ': ' + c.parsed.r.toFixed(1) + '%'; } }
             }
           },
-          animation: { duration: 600, easing: 'easeOutCubic' },
+          animation: { duration: 500, easing: 'easeOutCubic' },
         }
       });
 
-      /* Metric Bars */
-      var barsEl = document.getElementById('metric-bars');
-      barsEl.innerHTML = '';
-      METRICS.forEach(function(m) {
-        var sa = a ? m.get(a) : 0;
-        var sb = b ? m.get(b) : 0;
-        var pctA = sa / m.max * 45;
-        var pctB = sb / m.max * 45;
-        barsEl.innerHTML +=
-          '<div class="metric-row">' +
-            '<span class="metric-label">' + m.label + '</span>' +
-            '<div class="metric-track">' +
-              '<div class="metric-fill a" style="width:' + pctA + '%">' + sa.toFixed(1) + '</div>' +
-              '<div class="metric-fill b" style="width:' + pctB + '%">' + sb.toFixed(1) + '</div>' +
-              '<div class="metric-fill empty"></div>' +
-            '</div>' +
-          '</div>';
-      });
+      /* ── 카테고리별 바 ── */
+      var barsEl = document.getElementById('cat-bars');
+      var bh = '';
 
-      /* Detail Table */
+      function barSection(title, cats, bench) {
+        bh += '<div class="cb-group-label">' + title + '</div>';
+        cats.forEach(function(c) {
+          var sa = a ? getCat(a, bench, c.id) : 0;
+          var sb = b ? getCat(b, bench, c.id) : 0;
+          var wa = sa > sb && sa > 0 ? ' cb-winner' : '';
+          var wb = sb > sa && sb > 0 ? ' cb-winner' : '';
+          bh += '<div class="cb-row"><span class="cb-label">' + c.label + '</span>' +
+            '<div class="cb-track">' +
+            '<div class="cb-fill a' + wa + '" style="width:' + (sa*0.45) + '%">' + (sa > 5 ? sa.toFixed(1) : '') + '</div>' +
+            '<div class="cb-fill b' + wb + '" style="width:' + (sb*0.45) + '%">' + (sb > 5 ? sb.toFixed(1) : '') + '</div>' +
+            '<div class="cb-spacer"></div></div></div>';
+        });
+      }
+
+      barSection('PINCHBENCH', PB_CATS, 'pinchbench');
+      barSection('CLAWBENCH-KO', KO_CATS, 'clawbench_ko');
+      barsEl.innerHTML = bh;
+
+      /* ── 상세 테이블 ── */
       document.getElementById('th-a').textContent = a ? a.name : '—';
       document.getElementById('th-b').textContent = b ? b.name : '—';
       var tbody = document.getElementById('detail-body');
 
-      function val(model, fn, fallback) { return model ? fn(model) : fallback || '—'; }
+      function v(model, fn) { try { return model ? fn(model) : '—'; } catch(e) { return '—'; } }
+      function numRow(label, va, vb, unit, reverse) {
+        var na = parseFloat(va) || 0;
+        var nb = parseFloat(vb) || 0;
+        var ca = '', cb = '';
+        if (na > 0 && nb > 0) {
+          if (reverse) { ca = na < nb ? ' winner' : ''; cb = nb < na ? ' winner' : ''; }
+          else { ca = na > nb ? ' winner' : ''; cb = nb > na ? ' winner' : ''; }
+        }
+        var su = unit || '';
+        var da = va === '—' ? '—' : va + su;
+        var db = vb === '—' ? '—' : vb + su;
+        return '<tr><td>' + label + '</td><td class="' + ca + '">' + da + '</td><td class="' + cb + '">' + db + '</td></tr>';
+      }
+      function section(label) {
+        return '<tr><td class="dt-section" colspan="3">' + label + '</td></tr>';
+      }
 
-      var rows = [
-        ['제공자', val(a, function(m){return m.provider_label;}), val(b, function(m){return m.provider_label;})],
-        ['평균 속도', val(a, function(m){return m.avg_seconds_per_task + 's/task';}), val(b, function(m){return m.avg_seconds_per_task + 's/task';})],
-        ['PinchBench (best)', val(a, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';})],
-        ['ClawBench-KO (best)', val(a, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';})],
-      ];
+      var html = '';
 
-      tbody.innerHTML = rows.map(function(r) {
-        var va = parseFloat(r[1]) || 0;
-        var vb = parseFloat(r[2]) || 0;
-        var ca = va > vb && va > 0 ? ' winner' : '';
-        var cb = vb > va && vb > 0 ? ' winner' : '';
-        return '<tr><td>' + r[0] + '</td><td class="' + ca + '">' + r[1] + '</td><td class="' + cb + '">' + r[2] + '</td></tr>';
-      }).join('');
+      /* 기본 정보 */
+      html += section('기본 정보');
+      html += '<tr><td>제공자</td><td>' + v(a, function(m){return m.provider_label;}) + '</td><td>' + v(b, function(m){return m.provider_label;}) + '</td></tr>';
+      html += numRow('평균 속도',
+        v(a, function(m){return m.avg_seconds_per_task || '—';}),
+        v(b, function(m){return m.avg_seconds_per_task || '—';}), 's/task', true);
+
+      /* PinchBench */
+      html += section('PinchBench');
+      html += numRow('Best',
+        v(a, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';}),
+        v(b, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';}), '%');
+      html += numRow('Average',
+        v(a, function(m){return m.scores.pinchbench ? m.scores.pinchbench.average.toFixed(1) : '—';}),
+        v(b, function(m){return m.scores.pinchbench ? m.scores.pinchbench.average.toFixed(1) : '—';}), '%');
+      html += numRow('Std',
+        v(a, function(m){return m.scores.pinchbench ? '\u00b1' + m.scores.pinchbench.std.toFixed(2) : '—';}),
+        v(b, function(m){return m.scores.pinchbench ? '\u00b1' + m.scores.pinchbench.std.toFixed(2) : '—';}), '');
+      PB_CATS.forEach(function(c) {
+        html += numRow(c.label,
+          v(a, function(m){ return getCat(m,'pinchbench',c.id).toFixed(1); }),
+          v(b, function(m){ return getCat(m,'pinchbench',c.id).toFixed(1); }), '%');
+      });
+
+      /* ClawBench-KO */
+      html += section('ClawBench-KO');
+      html += numRow('Best',
+        v(a, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';}),
+        v(b, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';}), '%');
+      html += numRow('Average',
+        v(a, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.average.toFixed(1) : '—';}),
+        v(b, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.average.toFixed(1) : '—';}), '%');
+      html += numRow('Std',
+        v(a, function(m){return m.scores.clawbench_ko ? '\u00b1' + m.scores.clawbench_ko.std.toFixed(2) : '—';}),
+        v(b, function(m){return m.scores.clawbench_ko ? '\u00b1' + m.scores.clawbench_ko.std.toFixed(2) : '—';}), '');
+      KO_CATS.forEach(function(c) {
+        html += numRow(c.label,
+          v(a, function(m){ return getCat(m,'clawbench_ko',c.id).toFixed(1); }),
+          v(b, function(m){ return getCat(m,'clawbench_ko',c.id).toFixed(1); }), '%');
+      });
+
+      tbody.innerHTML = html;
     }
 
     selA.addEventListener('change', update);
