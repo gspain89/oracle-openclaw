@@ -5,7 +5,7 @@
       "provider": "dashscope",
       "name": "Qwen 3.5 27B",
       "provider_label": "DashScope (Alibaba)",
-      "free": false,
+
       "notes": "DashScope 무료 크레딧 1M tokens 사용 가능"
     },
     {
@@ -13,7 +13,7 @@
       "provider": "dashscope",
       "name": "Qwen 3.5 Plus",
       "provider_label": "DashScope (Alibaba)",
-      "free": false,
+
       "notes": "Plus 변형 — 응답 속도 빠름"
     },
     {
@@ -21,7 +21,7 @@
       "provider": "dashscope",
       "name": "GLM-5",
       "provider_label": "DashScope (Z.AI)",
-      "free": false,
+
       "notes": "Z.AI $9 크레딧 사용"
     },
     {
@@ -29,7 +29,7 @@
       "provider": "dashscope",
       "name": "GLM-5.1",
       "provider_label": "DashScope (Z.AI)",
-      "free": false,
+
       "notes": "GLM-5 후속. Z.AI 크레딧 사용"
     },
     {
@@ -37,7 +37,6 @@
       "provider": "openrouter",
       "name": "Nemotron 120B",
       "provider_label": "OpenRouter (NVIDIA)",
-      "free": true,
       "notes": "OpenRouter :free 모델 중 최고 성적"
     },
     {
@@ -45,7 +44,6 @@
       "provider": "dashscope",
       "name": "Qwen 3.5 122B",
       "provider_label": "DashScope (Alibaba)",
-      "free": true,
       "notes": "MoE 122B (10B active). 무료 체험 기간"
     },
     {
@@ -53,7 +51,6 @@
       "provider": "dashscope",
       "name": "Qwen3-8B",
       "provider_label": "DashScope (Alibaba)",
-      "free": true,
       "notes": "소형 모델 베이스라인"
     },
     {
@@ -61,7 +58,7 @@
       "provider": "upstage",
       "name": "Solar Pro 3",
       "provider_label": "Upstage",
-      "free": false,
+
       "notes": "102B MoE (12B active)"
     },
     {
@@ -69,7 +66,7 @@
       "provider": "azure-openai",
       "name": "GPT-5.3",
       "provider_label": "Azure OpenAI",
-      "free": false,
+
       "notes": "judge 전용 (멀티턴 에이전트 불가 — reasoning replay 버그)"
     }
   ]

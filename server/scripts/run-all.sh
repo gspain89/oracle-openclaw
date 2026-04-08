@@ -3,12 +3,12 @@
 #
 # 사용법:
 #   bash run-all.sh <model_id> [--runs N] [--bench pb|ko|all] [--dry-run]
-#   bash run-all.sh --all-models [--runs N] [--free-only] [--dry-run]
+#   bash run-all.sh --all-models [--runs N] [--dry-run]
 #
 # 예시:
 #   bash run-all.sh qwen3.5-27b --runs 3              # 두 벤치마크 각 3회
 #   bash run-all.sh qwen3.5-27b --runs 1 --bench pb   # PinchBench만 1회
-#   bash run-all.sh --all-models --runs 1 --free-only  # 무료 모델 전체
+#   bash run-all.sh --all-models --runs 1              # 전체 모델
 #
 # 동작:
 #   1. PinchBench 실행 (순차, --runs N 만큼 반복)
@@ -25,7 +25,6 @@ ALL_MODELS=""
 RUNS=1
 BENCH="all"  # pb, ko, all
 DRY_RUN=""
-FREE_ONLY=""
 NO_NORMALIZE=""
 
 while [[ $# -gt 0 ]]; do
@@ -34,7 +33,6 @@ while [[ $# -gt 0 ]]; do
     --runs)       RUNS="$2"; shift 2 ;;
     --bench)      BENCH="$2"; shift 2 ;;
     --dry-run)    DRY_RUN="--dry-run"; shift ;;
-    --free-only)  FREE_ONLY="true"; shift ;;
     --no-normalize) NO_NORMALIZE="true"; shift ;;
     -*)           echo "알 수 없는 옵션: $1"; exit 1 ;;
     *)            MODEL_ID="$1"; shift ;;
@@ -44,13 +42,12 @@ done
 if [ -z "$MODEL_ID" ] && [ -z "$ALL_MODELS" ]; then
   echo "사용법:"
   echo "  bash run-all.sh <model_id> [--runs N] [--bench pb|ko|all] [--dry-run]"
-  echo "  bash run-all.sh --all-models [--runs N] [--free-only] [--dry-run]"
+  echo "  bash run-all.sh --all-models [--runs N] [--dry-run]"
   echo ""
   echo "옵션:"
   echo "  --runs N        벤치마크별 반복 횟수 (기본: 1)"
   echo "  --bench pb|ko|all  실행할 벤치마크 (기본: all)"
   echo "  --dry-run       실제 실행 없이 명령어 확인"
-  echo "  --free-only     무료 모델만 실행 (--all-models 시)"
   echo "  --no-normalize  normalize.py 실행 건너뜀"
   exit 1
 fi
@@ -81,33 +78,26 @@ if [ -n "$ALL_MODELS" ]; then
 import json
 with open('$MODELS_FILE') as f:
     data = json.load(f)
-models = data['models']
-free = [m for m in models if m['free']]
-paid = [m for m in models if not m['free']]
-ordered = free + paid
-for m in ordered:
-    free_flag = '1' if m['free'] else '0'
-    print(f'{m[\"id\"]}|{m[\"name\"]}|{free_flag}')
+for m in data['models']:
+    print(f'{m[\"id\"]}|{m[\"name\"]}')
 ")
 
   # --all-models 사전 검증: 각 모델이 openclaw에 등록되어 있는지 확인
   echo "모델 사전 검증..."
   VALIDATED_MODELS=""
   SKIPPED=0
-  while IFS='|' read -r mid mname mfree; do
+  while IFS='|' read -r mid mname; do
     [ -z "$mid" ] && continue
     if echo "$mid" | grep -q '/'; then
-      # 이미 full ID — 직접 확인
       if echo "$OPENCLAW_MODELS_CACHE" | grep -qE "^${mid} "; then
-        VALIDATED_MODELS="${VALIDATED_MODELS}${mid}|${mname}|${mfree}"$'\n'
+        VALIDATED_MODELS="${VALIDATED_MODELS}${mid}|${mname}"$'\n'
       else
         echo "  SKIP: $mname ($mid) — openclaw에 미등록"
         SKIPPED=$((SKIPPED + 1))
       fi
     else
-      # short ID — suffix 매칭
       if echo "$OPENCLAW_MODELS_CACHE" | grep -qE "/${mid} "; then
-        VALIDATED_MODELS="${VALIDATED_MODELS}${mid}|${mname}|${mfree}"$'\n'
+        VALIDATED_MODELS="${VALIDATED_MODELS}${mid}|${mname}"$'\n'
       else
         echo "  SKIP: $mname ($mid) — openclaw에 미등록"
         SKIPPED=$((SKIPPED + 1))
@@ -133,7 +123,7 @@ for m in data['models']:
 else:
     print('$MODEL_ID')
 " 2>/dev/null)
-  MODELS="${MODEL_ID}|${MODEL_NAME}|0"
+  MODELS="${MODEL_ID}|${MODEL_NAME}"
 fi
 
 # ── 헤더 출력 ──
@@ -151,15 +141,9 @@ TOTAL_SUCCESS=0
 TOTAL_FAIL=0
 START_ALL=$(date +%s)
 
-while IFS='|' read -r model_id model_name free_flag; do
+while IFS='|' read -r model_id model_name; do
   [ -z "$model_id" ] && continue
   TOTAL_MODELS=$((TOTAL_MODELS + 1))
-
-  # --free-only 필터
-  if [ -n "$FREE_ONLY" ] && [ "$free_flag" != "1" ]; then
-    echo "SKIP (유료): $model_name"
-    continue
-  fi
 
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

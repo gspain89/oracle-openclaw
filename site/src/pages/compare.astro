@@ -241,7 +241,6 @@ const modelsJson = JSON.stringify(models);
 
       var rows = [
         ['제공자', val(a, function(m){return m.provider_label;}), val(b, function(m){return m.provider_label;})],
-        ['무료', val(a, function(m){return m.free ? '예' : '아니오';}), val(b, function(m){return m.free ? '예' : '아니오';})],
         ['평균 속도', val(a, function(m){return m.avg_seconds_per_task + 's/task';}), val(b, function(m){return m.avg_seconds_per_task + 's/task';})],
         ['PinchBench (best)', val(a, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.pinchbench ? m.scores.pinchbench.best.toFixed(1) : '—';})],
         ['ClawBench-KO (best)', val(a, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';}), val(b, function(m){return m.scores.clawbench_ko ? m.scores.clawbench_ko.best.toFixed(1) : '—';})],

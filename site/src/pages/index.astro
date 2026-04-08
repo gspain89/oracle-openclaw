@@ -92,7 +92,6 @@ const modelsJson = JSON.stringify(models);
               <td>
                 <div class="model-cell">
                   <span class="model-name">{m.name}</span>
-                  {m.free && <span class="free-tag">FREE</span>}
                 </div>
               </td>
               <td class="provider-cell">{m.provider_label}</td>
@@ -181,10 +180,6 @@ const modelsJson = JSON.stringify(models);
         var rankClass = 'rank-badge';
         if (i < 3) rankClass += ' top-' + (i + 1);
 
-        var freeHtml = model.free
-          ? ' <span class="free-tag">FREE</span>'
-          : '';
-
         var runsCount = (scores.runs && scores.runs.length) || 1;
         var stdVal = scores.std != null ? '\u00b1' + scores.std.toFixed(2) : '';
 
@@ -207,7 +202,7 @@ const modelsJson = JSON.stringify(models);
           '</div>' +
           '<div class="bar-info">' +
             '<span class="bar-model-name">' + model.name + '</span>' +
-            '<span class="bar-provider">' + model.provider_label + freeHtml + '</span>' +
+            '<span class="bar-provider">' + model.provider_label + '</span>' +
           '</div>' +
           '<div class="bar-tracks">' +
             '<div class="bar-track">' +

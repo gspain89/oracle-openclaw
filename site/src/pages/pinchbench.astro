@@ -65,7 +65,7 @@ const chartData = JSON.stringify(ranked.map((m: any) => ({
               </div>
               <div class="bar-info">
                 <span class="bar-model-name">{m.name}</span>
-                <span class="bar-provider">{m.provider_label}{m.free ? ' ' : ''}{m.free && <span class="free-tag">FREE</span>}</span>
+                <span class="bar-provider">{m.provider_label}</span>
               </div>
               <div class="bar-tracks">
                 <div class="bar-track">
@@ -138,7 +138,6 @@ const chartData = JSON.stringify(ranked.map((m: any) => ({
                   <td class="col-rank"><span class={`rank-badge ${i < 3 ? `top-${i+1}` : ''}`}>{i+1}</span></td>
                   <td>
                     <span class="model-name">{m.name}</span>
-                    {m.free && <span class="free-tag">FREE</span>}
                   </td>
                   <td class="score-mono score-best">{pb.best.toFixed(1)}%</td>
                   <td class="score-mono">{pb.average.toFixed(1)}%</td>
