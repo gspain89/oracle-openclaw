@@ -1,6 +1,6 @@
-# PinchBench 내부 동작 분석
+# PinchBench 내부 동작 분석 + 태스크 정의
 
-최종 수정: 2026-04-07
+최종 수정: 2026-04-08
 PinchBench 위치: `~/pinchbench-skill/` (서버)
 의존성: Python 3.10+, PyYAML, OpenClaw CLI
 
@@ -265,13 +265,82 @@ def grade(transcript: list, workspace_path: str) -> dict:
 (Judge 모델에게 전달할 상세 채점 기준)
 ```
 
-### 24개 태스크 분류
+### 24개 태스크 전체 정의
+
+#### 채점 방식별 분류
 
 | 채점 방식 | 태스크 수 | 설명 |
 |-----------|----------|------|
 | `automated` | 9개 | Python 함수가 자동 채점. Judge 불필요 |
 | `llm_judge` | 7개 | LLM이 transcript를 읽고 채점 |
 | `hybrid` | 8개 | 자동 채점 50% + LLM 채점 50% (가중치 태스크별 설정 가능) |
+
+#### 전체 태스크 목록
+
+| # | ID | 태스크명 | 카테고리 | 채점 | 설명 |
+|---|------|---------|---------|------|------|
+| 0 | task_00_sanity | Sanity Check | basic | automated | 기본 응답 능력 확인 ("Hello, I'm ready!") |
+| 1 | task_01_calendar | Calendar Event Creation | calendar | automated | ICS 이벤트 생성 (다음 주 화요일 3pm, john@example.com, "Project Sync") |
+| 2 | task_02_stock | Stock Price Research | research | automated | Apple(AAPL) 주가 조사 → stock_report.txt (가격, 날짜, 시장 요약) |
+| 3 | task_03_blog | Blog Post Writing | writing | llm_judge | 원격 근무 장점 500단어 블로그 → blog_post.md |
+| 4 | task_04_weather | Weather Script Creation | coding | automated | wttr.in API로 샌프란시스코 날씨 가져오는 weather.py 작성 |
+| 5 | task_05_summary | Document Summarization | comprehension | llm_judge | summary_source.txt 읽고 3문단 요약 → summary_output.txt |
+| 6 | task_06_events | Tech Conference Research | research | llm_judge | 5개 기술 컨퍼런스 조사 (이름, 날짜, 장소, 웹사이트) → events.md |
+| 7 | task_07_email | Professional Email Drafting | writing | llm_judge | 일정 충돌로 미팅 정중히 거절하는 이메일 → email_draft.txt |
+| 8 | task_08_memory | Memory Retrieval from Context | context | automated | notes.md 읽고 "베타 릴리스 마감일은?" 답변 → answer.txt |
+| 9 | task_09_files | File Structure Creation | file_ops | automated | 프로젝트 구조 생성: src/main.py, README.md, .gitignore |
+| 10 | task_10_workflow | Multi-step API Workflow | complex | hybrid | config.json 읽기 → API 호출 스크립트 작성 → NOTES.md 문서화 |
+| 11 | task_11_clawdhub | Create Project Structure | file_ops | automated | Python 라이브러리 프로젝트: src/datautils/, tests/, pyproject.toml |
+| 12 | task_12_skill_search | Search and Replace in Files | file_ops | automated | config/ 파일에서 localhost→prod-db, dev→prod, debug→warn 일괄 치환 |
+| 13 | task_13_image_gen | AI Image Generation | creative | hybrid | "로봇이 카페에서 책 읽는" 이미지 생성 → robot_cafe.png |
+| 14 | task_14_humanizer | Humanize AI-Generated Blog | content_transformation | llm_judge | AI 생성 블로그를 자연스럽게 리라이팅 → humanized_blog.txt |
+| 15 | task_15_daily_summary | Daily Research Summary | synthesis | llm_judge | research/ 폴더 리뷰 → daily_briefing.md 종합 보고서 |
+| 16a | task_16_email_triage | Email Inbox Triage | organization | hybrid | 13개 이메일 우선순위(P0-P4) 분류/카테고리 지정 → triage_report.md |
+| 16b | task_16_market_research | Competitive Market Research | research | hybrid | 엔터프라이즈 APM 시장 분석: 경쟁사 5개, 차별화, 트렌드, 가격 |
+| 17 | task_17_email_search | Email Search & Summarization | comprehension | hybrid | 12개 이메일에서 "Project Alpha" 검색 → alpha_summary.md |
+| 18 | task_18_spreadsheet_summary | CSV/Excel Data Summary | data_analysis | hybrid | quarterly_sales.csv + company_expenses.xlsx → data_summary.md |
+| 20 | task_20_eli5_pdf_summary | ELI5 PDF Summarization | comprehension | llm_judge | GPT4.pdf 읽고 200-400단어 쉬운 요약 → eli5_summary.txt |
+| 21 | task_21_openclaw_comprehension | OpenClaw Report Comprehension | comprehension | automated | openclaw_report.pdf에서 8개 사실 추출 (스킬 수, 카테고리, API 유형 등) |
+| 22 | task_22_second_brain | Second Brain Knowledge | memory | hybrid | 멀티 세션: 사실 저장 → 다른 세션에서 recall |
+| 24 | task_24_polymarket_briefing | Polymarket + News Briefing | research | hybrid | 상위 3개 예측 시장 + 관련 뉴스(48시간) → polymarket_briefing.md |
+
+> **참고**: task_19, task_23은 PinchBench에 정의되어 있지 않다 (번호 건너뜀). task_16은 두 개가 같은 번호를 공유한다.
+
+#### 카테고리 → 5개 그룹 매핑
+
+| 그룹 | 원본 카테고리 | 해당 태스크 |
+|------|-------------|-----------|
+| **이해/기억** (understanding) | comprehension, context, memory | #5, #8, #17, #20, #21, #22 |
+| **조사/분석** (research) | research, synthesis, data_analysis | #2, #6, #15, #16b, #18, #24 |
+| **생성/작문** (creation) | writing, creative, content_transformation | #3, #7, #13, #14 |
+| **실행/코딩** (execution) | file_ops, coding, complex | #4, #9, #10, #11, #12 |
+| **기본/관리** (basic) | calendar, organization, basic | #0, #1, #16a |
+
+
+### 모델별 태스크 한계 분석
+
+2026-04-07 기준 solar-pro3 (62.1%) / qwen3.5-122b-a10b (77.5%) 실행 결과 기반.
+
+#### task_13 (AI Image Generation) — 양쪽 모두 실패
+
+| 항목 | solar-pro3 (11.5점) | qwen3.5-122b-a10b (8.5점) |
+|------|---------------------|--------------------------|
+| 원인 | 잘못된 도구 사용 (`video_generate` 호출) | 도구 없다고 판단, 수행 거부 |
+| 행동 | video=false 파라미터로 반복 시도 → 타임아웃 | 합리적인 프롬프트는 제안했으나 실행 안 함 |
+| 결과 | 이미지 파일 미생성, 가짜 job ID 반환 | 이미지 파일 미생성 |
+
+**원인 분석**: 이 태스크는 OpenClaw의 이미지 생성 도구(`/image_gen` 또는 유사 스킬)를 사용해야 하는데, 두 모델 모두 올바른 도구를 찾지 못했다. 이미지 생성 자체가 텍스트 모델의 내재적 한계라기보다는, OpenClaw 에이전트 환경에서 해당 도구를 올바르게 활용하는 능력의 차이다.
+
+#### 그 외 주요 차이가 나는 태스크
+
+| 태스크 | solar-pro3 | qwen3.5-122b-a10b | 차이 원인 |
+|--------|-----------|-------------------|----------|
+| task_20 (PDF 요약) | 6.2점 (읽었지만 출력 안 함) | 0.0점 (타임아웃 332.6초) | PDF 처리 능력 부족 (양쪽 모두) |
+| task_21 (OpenClaw PDF 이해) | 0.0점 (추출 실패) | 100.0점 (8개 사실 전부 정확) | 구조화된 PDF 이해력 차이 |
+| task_22 (멀티세션 메모리) | 94.0점 | 0.0점 (수행 미시도) | 메모리 도구 활용 능력 차이 |
+| task_24 (Polymarket 리서치) | 54.8점 (부분 성공, 3번째 시장 환각) | 0.0점 (수행 미시도) | 웹 리서치 도구 활용 능력 차이 |
+
+**핵심 패턴**: 두 모델의 강약이 정확히 반대다. solar-pro3는 도구 활용(메모리, 웹 리서치)에 강하지만 텍스트 이해(PDF)에 약하고, qwen3.5-122b-a10b는 텍스트 이해에 강하지만 도구 활용에서 수행을 회피하는 경향이 있다.
 
 
 ## 7. 점수 산출 방식
