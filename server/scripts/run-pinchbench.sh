@@ -126,6 +126,16 @@ except Exception as e:
     print(f'  (파싱 실패: {e})')
 " 2>/dev/null || echo "  (결과 파싱 불가)"
 
+  # 에이전트 세션에서 transcript 추출 → 결과에 병합
+  echo ""
+  echo "--- Transcript 추출 ---"
+  EXTRACT_SCRIPT="$REPO_ROOT/server/python/extract_transcripts.py"
+  if [ -f "$EXTRACT_SCRIPT" ]; then
+    python3 "$EXTRACT_SCRIPT" --result "$RESULT_FILE" 2>&1 || echo "  (transcript 추출 실패 — 계속 진행)"
+  else
+    echo "  (extract_transcripts.py 없음 — 건너뜀)"
+  fi
+
   # 결과를 표준 위치에 복사 (normalize.py 호환)
   cp "$RESULT_FILE" "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json" 2>/dev/null || true
   echo "  복사: $RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json"
@@ -198,6 +208,10 @@ print(f'  최종 점수: {total:.1f}/{n} ({total/n*100:.1f}%)')
 with open('$RESULT_FILE', 'w') as f:
     json.dump(orig, f, indent=2, ensure_ascii=False)
 " 2>/dev/null
+      # 재시도 태스크도 transcript 추출
+      if [ -f "$EXTRACT_SCRIPT" ]; then
+        python3 "$EXTRACT_SCRIPT" --result "$RESULT_FILE" 2>&1 || true
+      fi
       # 병합된 결과를 표준 위치에 재복사
       cp "$RESULT_FILE" "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json" 2>/dev/null || true
     fi

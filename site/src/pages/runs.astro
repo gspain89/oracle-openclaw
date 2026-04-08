@@ -413,6 +413,40 @@ const detailsJson = JSON.stringify(detailsMap);
   }
   .slide-panel .bd-key { color: var(--text-2); }
   .slide-panel .bd-val { font-family: var(--font-mono); font-weight: 600; color: var(--text); text-align: right; }
+
+  /* 도구 호출 pills */
+  .slide-panel .tool-pills {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;
+  }
+  .slide-panel .tool-pill {
+    display: inline-block;
+    font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600;
+    padding: 2px 7px; border-radius: 10px;
+    background: rgba(37,99,168,0.1); color: #2563a8;
+    border: 1px solid rgba(37,99,168,0.15);
+  }
+  .slide-panel .tool-detail-list {
+    list-style: none; padding: 0; margin: 2px 0 0;
+  }
+  .slide-panel .tool-detail-item {
+    display: flex; gap: 6px; align-items: baseline;
+    padding: 1px 0; font-size: 0.6rem;
+  }
+  .slide-panel .tool-detail-name {
+    font-family: var(--font-mono); font-weight: 600; color: var(--accent);
+    flex-shrink: 0;
+  }
+  .slide-panel .tool-detail-input {
+    color: var(--text-3); font-family: var(--font-mono); font-size: 0.56rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* 에이전트 응답 — 더 넓은 max-height */
+  .slide-panel .ds-text.agent-resp {
+    max-height: 200px;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+  }
 </style>
 
 <script is:inline define:vars={{ detailsJson }}>
@@ -539,6 +573,30 @@ const detailsJson = JSON.stringify(detailsMap);
       if (fb) {
         h += '<div class="ds"><div class="ds-label">Judge Feedback</div>';
         h += '<div class="ds-text">' + esc(fb) + '</div></div>';
+      }
+      // 도구 호출 목록
+      if (t.tool_calls && t.tool_calls.length) {
+        h += '<div class="ds"><div class="ds-label">Tool Calls</div>';
+        h += '<div class="tool-pills">';
+        t.tool_calls.forEach(function(tc) {
+          h += '<span class="tool-pill">' + esc(tc) + '</span>';
+        });
+        h += '</div>';
+        if (t.tool_details && t.tool_details.length) {
+          h += '<ul class="tool-detail-list">';
+          t.tool_details.forEach(function(td) {
+            h += '<li class="tool-detail-item"><span class="tool-detail-name">' + esc(td.tool) +
+              '</span><span class="tool-detail-input">' + esc(td.input_summary || '') + '</span></li>';
+          });
+          h += '</ul>';
+        }
+        if (t.turn_count) h += '<div style="margin-top:3px;font-size:0.58rem;color:var(--text-3)">' + t.turn_count + ' turns</div>';
+        h += '</div>';
+      }
+      // 에이전트 응답
+      if (t.agent_response) {
+        h += '<div class="ds"><div class="ds-label">Agent Response</div>';
+        h += '<div class="ds-text agent-resp">' + esc(t.agent_response) + '</div></div>';
       }
       if (t.judge_model) h += '<div style="font-size:0.58rem;color:var(--text-3);margin-top:2px">judge: ' + esc(t.judge_model) + '</div>';
       h += '</div></div>';

@@ -266,6 +266,11 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
         if agent_result["stderr"]:
             logger.warning("    stderr: %s", agent_result["stderr"][:500])
 
+    # 에이전트 응답 보존 (transcript용, 최대 5000자)
+    agent_response = (agent_result.get("stdout") or "").strip()
+    if len(agent_response) > 5000:
+        agent_response = agent_response[:5000] + "\n... (truncated)"
+
     return {
         "task_id": task_id,
         "name": task["name"],
@@ -280,6 +285,7 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
         "status": agent_result["status"],
         "agent_returncode": agent_result["returncode"],
         "workspace_files": list(workspace_files.keys()),
+        "agent_response": agent_response,
     }
 
 
@@ -525,7 +531,7 @@ def main():
     task_entries = []
     for task_id in task_ids:
         for r in all_results[task_id]:
-            task_entries.append({
+            entry = {
                 "task_id": r["task_id"],
                 "status": r["status"],
                 "timed_out": r["timed_out"],
@@ -540,7 +546,10 @@ def main():
                     "category": r["category"],
                     "grading_type": r["grading_type"],
                 },
-            })
+            }
+            if r.get("agent_response"):
+                entry["agent_response"] = r["agent_response"]
+            task_entries.append(entry)
 
     # overall score
     all_means = [a["grading"]["mean"] for a in aggregated]

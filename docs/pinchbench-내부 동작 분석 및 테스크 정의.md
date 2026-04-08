@@ -8,10 +8,10 @@ PinchBench 위치: `~/pinchbench-skill/` (서버)
 
 ## 1. PinchBench란
 
-PinchBench는 OpenClaw 에이전트의 실무 능력을 측정하는 벤치마크 도구다. 24개 태스크를 에이전트에게 수행시키고, 자동 채점 + LLM 판정으로 점수를 매긴다.
+PinchBench는 LLM 에이전트의 실무 능력을 측정하는 벤치마크 도구다. 24개 태스크를 에이전트에게 수행시키고, 자동 채점 + LLM 판정으로 점수를 매긴다. 태스크 자체는 프레임워크에 의존하지 않으며, 실행 하네스만 OpenClaw CLI에 결합되어 있다 (§10 참조).
 
 핵심 특징:
-- 모든 모델 호출은 `openclaw agent` CLI를 통해 수행 — 외부 API 직접 호출 없음
+- 현재 실행 환경에서 모든 모델 호출은 `openclaw agent` CLI를 통해 수행 — 외부 API 직접 호출 없음
 - 테스트 대상 모델과 채점(judge) 모델이 분리되어 있음
 - 두 모델 모두 OpenClaw 에이전트로 실행됨
 
@@ -404,3 +404,35 @@ Judge 모델: azure-openai/gpt-5.3-chat (Azure 크레딧)
 │   └── test_lib_grading.py   ← 채점 로직 단위 테스트
 └── crab.txt                  ← ASCII 아트 (시작 시 출력)
 ```
+
+
+## 10. 프레임워크 의존성 분석
+
+PinchBench는 3개 계층으로 구성되며, 각 계층의 프레임워크 의존도가 다르다.
+
+### 계층별 의존성
+
+| 계층 | 해당 코드 | OpenClaw 의존도 | 설명 |
+|------|----------|----------------|------|
+| **태스크 정의** | `tasks/*.md` — Prompt, Expected Behavior, Rubric | **없음** | 자연어 지시문. "블로그 글을 써라", "PDF를 요약하라" 등 프레임워크 특정 명령이 없다 |
+| **실행 하네스** | `lib_agent.py` — 에이전트 생성, 세션 관리, 프롬프트 전송 | **강함** | `openclaw agent` CLI를 직접 호출. `ensure_agent_exists()`, `run_openclaw_prompt()` 등 OpenClaw 전용 함수 |
+| **채점 로직** | `lib_grading.py` + 각 태스크의 `grade()` 함수 | **약함** | 순수 Python으로 파일 존재 확인, 텍스트 패턴 매칭, JSON 검증 등 수행. LLM judge 호출 부분만 OpenClaw 경유 |
+
+### 왜 태스크가 프레임워크 비의존적인가
+
+24개 태스크의 Prompt 섹션을 분석하면:
+- `openclaw`이라는 단어가 등장하는 태스크: 0개
+- 프레임워크 특정 도구명을 지시하는 태스크: 0개 (task_13도 "generate an image"라고만 함)
+- 모든 지시가 "파일을 만들어라", "검색해서 정리해라", "CSV를 분석해라" 등 **일반적인 에이전트 능력**을 요구
+
+즉, 같은 태스크를 CrewAI, LangGraph, AutoGen 등 다른 에이전트 프레임워크에서도 동일하게 수행시킬 수 있다.
+
+### 다른 프레임워크로 포팅 시
+
+```
+변경 필요:  lib_agent.py  (에이전트 생성/실행/세션 관리 — 프레임워크별 재작성)
+변경 가능:  lib_grading.py의 LLM judge 호출 부분 (현재 OpenClaw 에이전트로 judge 실행)
+변경 불필요: tasks/*.md (태스크 정의), grade() 함수 (순수 Python 채점 로직)
+```
+
+실질적으로 `lib_agent.py` 하나만 대상 프레임워크의 에이전트 실행 API로 교체하면 된다. 태스크 정의와 자동 채점 로직은 그대로 재사용 가능하다.

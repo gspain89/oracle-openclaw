@@ -465,6 +465,16 @@ def extract_task_details(raw: dict, bench: str, prompts: dict[str, str]) -> list
                 if run0.get("judge_model"):
                     detail["judge_model"] = run0["judge_model"]
 
+        # transcript / 에이전트 응답 (PinchBench: extract_transcripts.py가 병합, KO: runner.py가 저장)
+        if t.get("agent_response"):
+            detail["agent_response"] = t["agent_response"][:5000]
+        if t.get("tool_calls"):
+            detail["tool_calls"] = t["tool_calls"]
+        if t.get("tool_details"):
+            detail["tool_details"] = t["tool_details"][:20]
+        if t.get("turn_count"):
+            detail["turn_count"] = t["turn_count"]
+
         details.append(detail)
 
     return details
