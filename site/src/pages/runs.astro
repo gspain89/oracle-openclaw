@@ -269,7 +269,7 @@ const detailsJson = JSON.stringify(detailsMap);
   .panel-backdrop.open { opacity: 1; pointer-events: auto; }
 
   .slide-panel {
-    position: fixed; top: 0; right: 0; bottom: 0;
+    position: fixed; top: 60px; right: 0; bottom: 0;
     width: min(480px, 92vw);
     background: var(--bg-page);
     border-left: 1px solid var(--border);
@@ -575,11 +575,13 @@ const detailsJson = JSON.stringify(detailsMap);
 
       panel.classList.add('open');
       backdrop.classList.add('open');
+      document.body.style.overflow = 'hidden';
     }
 
     function closePanel() {
       panel.classList.remove('open');
       backdrop.classList.remove('open');
+      document.body.style.overflow = '';
     }
 
     rows.forEach(function(row) {
