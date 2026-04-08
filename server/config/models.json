@@ -41,10 +41,10 @@
     },
     {
       "id": "qwen3.5-122b-a10b",
-      "provider": "dashscope",
+      "provider": "openrouter",
       "name": "Qwen 3.5 122B",
-      "provider_label": "DashScope (Alibaba)",
-      "notes": "MoE 122B (10B active). 무료 체험 기간"
+      "provider_label": "OpenRouter (Alibaba)",
+      "notes": "MoE 122B (10B active)"
     },
     {
       "id": "qwen3-8b",
