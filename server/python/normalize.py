@@ -70,6 +70,221 @@ PROVIDER_LABELS = {
     "qwen": "DashScope (Alibaba)",
 }
 
+# OpenRouter 모델 ID에서 원 개발사 추출 (예: nvidia/nemotron → NVIDIA)
+OPENROUTER_ORG_LABELS = {
+    "nvidia": "NVIDIA",
+    "qwen": "Alibaba", "alibaba": "Alibaba",
+    "google": "Google",
+    "meta-llama": "Meta", "meta": "Meta",
+    "mistralai": "Mistral",
+    "microsoft": "Microsoft",
+    "deepseek": "DeepSeek",
+    "cohere": "Cohere",
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+    "zhipuai": "Z.AI", "thudm": "Z.AI",
+    "x-ai": "xAI",
+    "01-ai": "01.AI",
+    "ai21": "AI21",
+    "tiiuae": "TII",
+    "databricks": "Databricks",
+    "upstage": "Upstage",
+    "reka-ai": "Reka",
+    "writer": "Writer",
+    "samsung": "Samsung", "samsungresearch": "Samsung",
+    "nousresearch": "Nous",
+    "together": "Together",
+    "perplexity": "Perplexity",
+    "fireworks": "Fireworks",
+    "inflection": "Inflection",
+    "intern": "Shanghai AI Lab",
+    "baichuan-inc": "Baichuan",
+    "amazon": "Amazon",
+}
+
+
+def prettify_model_name(model_id: str) -> str:
+    """모델 ID를 사람 읽기 좋은 이름으로 변환 (룰베이스)
+
+    예: qwen3.5-122b-a10b → Qwen 3.5 122B A10B
+        solar-pro3 → Solar Pro 3
+        glm-5.1 → GLM-5.1
+        gpt-5.3-chat → GPT-5.3 Chat
+    """
+    import re
+
+    # 알려진 브랜드명 정규화 (소문자 키 → 표시명)
+    BRANDS = {
+        # Alibaba
+        "qwen": "Qwen", "qwq": "QwQ",
+        # Z.AI (Zhipu)
+        "glm": "GLM", "chatglm": "ChatGLM", "codegeex": "CodeGeeX",
+        # OpenAI
+        "gpt": "GPT", "dall": "DALL",
+        # Anthropic
+        "claude": "Claude",
+        # Google
+        "gemini": "Gemini", "gemma": "Gemma", "palm": "PaLM",
+        # Meta
+        "llama": "Llama", "codellama": "CodeLlama",
+        # Mistral AI
+        "mistral": "Mistral", "mixtral": "Mixtral", "codestral": "Codestral",
+        "pixtral": "Pixtral", "ministral": "Ministral",
+        # NVIDIA
+        "nemotron": "Nemotron", "nvlm": "NVLM",
+        # Microsoft
+        "phi": "Phi", "wizardlm": "WizardLM", "orca": "Orca",
+        # DeepSeek
+        "deepseek": "DeepSeek",
+        # Cohere
+        "command": "Command", "aya": "Aya",
+        # Upstage
+        "solar": "Solar",
+        # AI21
+        "jamba": "Jamba", "jurassic": "Jurassic",
+        # 01.AI
+        "yi": "Yi",
+        # xAI
+        "grok": "Grok",
+        # Reka
+        "reka": "Reka",
+        # Samsung
+        "exaone": "EXAONE",
+        # TII
+        "falcon": "Falcon",
+        # Databricks
+        "dbrx": "DBRX",
+        # Together/Nous
+        "hermes": "Hermes", "nous": "Nous", "starcoder": "StarCoder",
+        # Alibaba (international)
+        "marco": "Marco",
+        # InternLM
+        "internlm": "InternLM", "internvl": "InternVL",
+        # Baichuan
+        "baichuan": "Baichuan",
+    }
+    # 일반 접미어 (capitalize만)
+    SUFFIXES = {
+        "chat", "plus", "pro", "instruct", "turbo", "mini",
+        "super", "ultra", "lite", "base", "large", "small",
+        "preview", "latest", "reasoner", "coder", "vision",
+        "nightly", "free", "online", "fast", "flash", "exp",
+        "extended", "thinking", "sonnet", "opus", "haiku",
+        "medium", "nano", "micro", "max", "it",
+    }
+
+    # provider/ 접두어 제거
+    if "/" in model_id:
+        model_id = model_id.split("/", 1)[1]
+    if "/" in model_id:
+        model_id = model_id.split("/", 1)[1]
+
+    # :free 같은 태그 제거
+    model_id = re.sub(r":\w+$", "", model_id)
+
+    parts = model_id.replace("_", "-").split("-")
+    result = []
+    for p in parts:
+        if not p:
+            continue
+        pl = p.lower()
+
+        # 파라미터 크기+active 패턴 (a10b, a12b) → 대문자 그대로
+        if re.match(r"^[a-z]\d+[bBkKmM]$", p):
+            result.append(p.upper())
+            continue
+
+        # 순수 크기 (122b, 27b, 7.8b, 120b) → 대문자
+        if re.match(r"^\d+(\.\d+)?[bBkKmM]$", p):
+            result.append(p.upper())
+            continue
+
+        # MoE 크기 패턴 (8x7b, 8x22b) → 대문자
+        if re.match(r"^\d+x\d+[bBkKmM]?$", p, re.IGNORECASE):
+            result.append(p.upper())
+            continue
+
+        # 버전 태그 (v2, v3, r1, e5) → 대문자
+        if re.match(r"^[rvRVeE]\d+(\.\d+)?$", p):
+            result.append(p.upper())
+            continue
+
+        # 브랜드명 + 버전 (qwen3.5, glm5, gpt5.3) → 브랜드-버전
+        m = re.match(r"^([a-zA-Z]+)([\d].*)$", p)
+        if m:
+            brand_key = m.group(1).lower()
+            version = m.group(2)
+            if brand_key in BRANDS:
+                result.append(f"{BRANDS[brand_key]} {version}")
+            else:
+                result.append(f"{m.group(1).capitalize()} {version}")
+            continue
+
+        # 알려진 브랜드
+        if pl in BRANDS:
+            result.append(BRANDS[pl])
+            continue
+
+        # 알려진 접미어
+        if pl in SUFFIXES:
+            result.append(p.capitalize())
+            continue
+
+        # 순수 숫자 (3, 5, 120) → 그대로
+        if p.isdigit():
+            result.append(p)
+            continue
+
+        # 기본: capitalize
+        result.append(p.capitalize())
+
+    return " ".join(result) if result else model_id
+
+
+def load_openclaw_config() -> dict:
+    """~/.openclaw/openclaw.json에서 provider/model 메타데이터 로드
+
+    반환: { "provider/model-id": {"name": ..., "provider": ...}, ... }
+    """
+    config_path = Path.home() / ".openclaw" / "openclaw.json"
+    if not config_path.exists():
+        return {}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+    result = {}
+    providers = data.get("models", {}).get("providers", {})
+    for prov_id, prov_data in providers.items():
+        for model in prov_data.get("models", []):
+            mid = model.get("id", "")
+            full_key = f"{prov_id}/{mid}"
+            result[full_key] = {
+                "name": model.get("name", mid),
+                "provider": prov_id,
+            }
+    return result
+
+
+def resolve_provider_label(provider: str, raw_model: str = "") -> str:
+    """provider ID와 raw_model에서 provider_label 생성
+
+    OpenRouter처럼 중개 플랫폼인 경우 원 개발사도 병기:
+      openrouter + nvidia/nemotron → OpenRouter (NVIDIA)
+    """
+    base = PROVIDER_LABELS.get(provider, provider.capitalize())
+
+    if provider == "openrouter" and "/" in raw_model:
+        # openrouter/nvidia/model → org = nvidia
+        parts = raw_model.split("/")
+        org = parts[1] if len(parts) >= 3 else ""
+        org_label = OPENROUTER_ORG_LABELS.get(org.lower(), "")
+        if org_label:
+            return f"{base} ({org_label})"
+    return base
+
 
 def resolve_paths(repo_root: Path):
     return {
@@ -707,6 +922,9 @@ def build_leaderboard(registry: dict, paths: dict,
     total_run_count = 0
     models_from_raw = set()  # raw 데이터로 갱신된 모델 ID
 
+    # openclaw config에서 모델 메타데이터 로드 (onboard로 등록된 정보)
+    oc_config = load_openclaw_config()
+
     # raw 결과가 있는 모든 model_id (등록 + 미등록 포함)
     all_model_ids = set(pb_runs.keys()) | set(ko_runs.keys())
 
@@ -716,32 +934,48 @@ def build_leaderboard(registry: dict, paths: dict,
         ko_list = ko_runs.get(model_id, [])
 
         if model_id in registry:
+            # models.json에 수동 등록된 모델 — 최우선
             info = registry[model_id]
             provider = info.get("provider", "")
+            raw_model = unregistered_raw.get(model_id, model_id)
             entry = {
                 "id": model_id,
                 "name": info.get("name", model_id),
                 "provider": provider,
                 "provider_label": info.get("provider_label",
-                    PROVIDER_LABELS.get(provider, provider)),
+                    resolve_provider_label(provider, raw_model)),
                 "avg_seconds_per_task": 0,
                 "scores": {},
             }
         else:
-            # 미등록 모델 — raw_model에서 provider 추출, 자동 매핑
+            # 미등록 모델 — openclaw config → 룰베이스 순으로 메타데이터 추출
             raw_model = unregistered_raw.get(model_id, model_id)
             provider = extract_provider(raw_model)
-            label = PROVIDER_LABELS.get(provider, provider)
+
+            # openclaw config에서 이름 조회 시도
+            oc_name = None
+            for oc_key, oc_val in oc_config.items():
+                if oc_key.endswith("/" + model_id) or oc_key == raw_model:
+                    oc_name = oc_val.get("name")
+                    break
+
+            # 이름 우선순위: openclaw config → prettify 룰베이스
+            name = model_id
+            if oc_name and oc_name != model_id:
+                name = oc_name
+            else:
+                name = prettify_model_name(model_id)
+
+            label = resolve_provider_label(provider, raw_model)
             entry = {
                 "id": model_id,
-                "name": model_id,
+                "name": name,
                 "provider": provider,
                 "provider_label": label,
                 "avg_seconds_per_task": 0,
-                "auto_registered": True,
                 "scores": {},
             }
-            print(f"  AUTO: 미등록 모델 '{model_id}' → provider={provider}")
+            print(f"  AUTO: 미등록 모델 '{model_id}' → name={name}, provider={label}")
 
         # PinchBench 집계
         avg_secs = []
