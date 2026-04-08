@@ -37,14 +37,23 @@ const modelsJson = JSON.stringify(models);
     </div>
 
     <div class="compare-grid">
-      <div class="card">
-        <h3>카테고리별 레이더</h3>
-        <p class="card-sub">PinchBench 5개 + ClawBench-KO 3개 카테고리</p>
-        <div class="radar-wrap">
-          <canvas id="radar-chart" width="420" height="380"></canvas>
+      <div class="radar-col">
+        <div class="card radar-card">
+          <h3>PinchBench</h3>
+          <p class="card-sub">5개 카테고리 (이해, 조사, 생성, 실행, 기본)</p>
+          <div class="radar-wrap">
+            <canvas id="radar-pb"></canvas>
+          </div>
+        </div>
+        <div class="card radar-card">
+          <h3>ClawBench-KO</h3>
+          <p class="card-sub">3개 카테고리 (데이터, 문서, 한국 시스템)</p>
+          <div class="radar-wrap">
+            <canvas id="radar-ko"></canvas>
+          </div>
         </div>
       </div>
-      <div class="card">
+      <div class="card cat-card">
         <h3>카테고리별 비교</h3>
         <p class="card-sub">각 카테고리에서 두 모델 점수를 나란히 비교</p>
         <div id="cat-bars" class="cat-bars"></div>
@@ -85,7 +94,13 @@ const modelsJson = JSON.stringify(models);
     display: grid; grid-template-columns: 1fr 1fr;
     gap: 20px; margin-bottom: 20px;
     animation: fade-up 0.5s var(--ease-out-expo) 0.1s backwards;
+    align-items: start;
   }
+  .radar-col {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .radar-card { padding-bottom: 12px; }
+  .cat-card { align-self: stretch; }
   .detail-card { animation: fade-up 0.5s var(--ease-out-expo) 0.2s backwards; }
   .card-sub { font-size: 0.72rem; color: var(--text-3); margin: 2px 0 0; }
 
@@ -95,7 +110,7 @@ const modelsJson = JSON.stringify(models);
     .compare-grid { grid-template-columns: 1fr; }
   }
 
-  .radar-wrap { margin-top: 12px; display: flex; justify-content: center; }
+  .radar-wrap { margin-top: 10px; display: flex; justify-content: center; }
 
   /* 카테고리 바 */
   .cat-bars { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
@@ -147,7 +162,8 @@ const modelsJson = JSON.stringify(models);
     var models = JSON.parse(modelsJson);
     var selA = document.getElementById('model-a');
     var selB = document.getElementById('model-b');
-    var radarChart = null;
+    var radarPB = null;
+    var radarKO = null;
 
     var PB_CATS = [
       { id: 'understanding', label: '이해/기억' },
@@ -176,73 +192,69 @@ const modelsJson = JSON.stringify(models);
       var a = models[+selA.value] || null;
       var b = models[+selB.value] || null;
 
-      /* ── 레이더: 8개 카테고리 축 ── */
-      var allCats = PB_CATS.concat(KO_CATS);
-      var radarLabels = allCats.map(function(c) { return c.label; });
-      var radarA = allCats.map(function(c, i) {
-        var bench = i < 5 ? 'pinchbench' : 'clawbench_ko';
-        return a ? getCat(a, bench, c.id) : 0;
-      });
-      var radarB = allCats.map(function(c, i) {
-        var bench = i < 5 ? 'pinchbench' : 'clawbench_ko';
-        return b ? getCat(b, bench, c.id) : 0;
+      /* ── 레이더 공통 옵션 ── */
+      var radarOpts = {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          r: {
+            beginAtZero: true, max: 100,
+            ticks: { stepSize: 25, color: '#9e9082', font: { family: 'IBM Plex Mono', size: 9 }, backdropColor: 'transparent' },
+            grid: { color: 'rgba(120,100,70,0.1)' },
+            angleLines: { color: 'rgba(120,100,70,0.1)' },
+            pointLabels: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 11, weight: '500' } },
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 10 }, usePointStyle: true, pointStyle: 'circle' } },
+          tooltip: {
+            backgroundColor: 'rgba(26,20,16,0.92)',
+            titleColor: '#f0ead8', bodyColor: '#f0ead8',
+            borderColor: 'rgba(120,100,70,0.3)', borderWidth: 1,
+            bodyFont: { family: 'IBM Plex Mono' },
+            callbacks: { label: function(c) { return c.dataset.label + ': ' + c.parsed.r.toFixed(1) + '%'; } }
+          }
+        },
+        animation: { duration: 500, easing: 'easeOutCubic' },
+      };
+      function makeDS(model, color, fill) {
+        return {
+          label: model ? model.name : '—',
+          data: [],
+          backgroundColor: fill,
+          borderColor: color,
+          borderWidth: 2.5,
+          pointBackgroundColor: color,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1.5,
+          pointRadius: 4,
+        };
+      }
+
+      /* ── PinchBench 레이더 (5축) ── */
+      var dsA_pb = makeDS(a, '#8c2416', 'rgba(140,36,22,0.12)');
+      dsA_pb.data = PB_CATS.map(function(c) { return a ? getCat(a, 'pinchbench', c.id) : 0; });
+      var dsB_pb = makeDS(b, '#2563a8', 'rgba(37,99,168,0.12)');
+      dsB_pb.data = PB_CATS.map(function(c) { return b ? getCat(b, 'pinchbench', c.id) : 0; });
+
+      if (radarPB) radarPB.destroy();
+      radarPB = new Chart(document.getElementById('radar-pb'), {
+        type: 'radar',
+        data: { labels: PB_CATS.map(function(c){return c.label;}), datasets: [dsA_pb, dsB_pb] },
+        options: radarOpts,
       });
 
-      var ctx = document.getElementById('radar-chart');
-      if (radarChart) radarChart.destroy();
-      radarChart = new Chart(ctx, {
+      /* ── ClawBench-KO 레이더 (3축) ── */
+      var dsA_ko = makeDS(a, '#8c2416', 'rgba(140,36,22,0.12)');
+      dsA_ko.data = KO_CATS.map(function(c) { return a ? getCat(a, 'clawbench_ko', c.id) : 0; });
+      var dsB_ko = makeDS(b, '#2563a8', 'rgba(37,99,168,0.12)');
+      dsB_ko.data = KO_CATS.map(function(c) { return b ? getCat(b, 'clawbench_ko', c.id) : 0; });
+
+      if (radarKO) radarKO.destroy();
+      radarKO = new Chart(document.getElementById('radar-ko'), {
         type: 'radar',
-        data: {
-          labels: radarLabels,
-          datasets: [
-            {
-              label: a ? a.name : '—',
-              data: radarA,
-              backgroundColor: 'rgba(140,36,22,0.12)',
-              borderColor: '#8c2416',
-              borderWidth: 2.5,
-              pointBackgroundColor: '#8c2416',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 1.5,
-              pointRadius: 4,
-            },
-            {
-              label: b ? b.name : '—',
-              data: radarB,
-              backgroundColor: 'rgba(37,99,168,0.12)',
-              borderColor: '#2563a8',
-              borderWidth: 2.5,
-              pointBackgroundColor: '#2563a8',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 1.5,
-              pointRadius: 4,
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          scales: {
-            r: {
-              beginAtZero: true, max: 100,
-              ticks: { stepSize: 25, color: '#9e9082', font: { family: 'IBM Plex Mono', size: 9 }, backdropColor: 'transparent' },
-              grid: { color: 'rgba(120,100,70,0.1)' },
-              angleLines: { color: 'rgba(120,100,70,0.1)' },
-              pointLabels: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 11, weight: '500' } },
-            }
-          },
-          plugins: {
-            legend: { labels: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
-            tooltip: {
-              backgroundColor: 'rgba(26,20,16,0.92)',
-              titleColor: '#f0ead8', bodyColor: '#f0ead8',
-              borderColor: 'rgba(120,100,70,0.3)', borderWidth: 1,
-              bodyFont: { family: 'IBM Plex Mono' },
-              callbacks: { label: function(c) { return c.dataset.label + ': ' + c.parsed.r.toFixed(1) + '%'; } }
-            }
-          },
-          animation: { duration: 500, easing: 'easeOutCubic' },
-        }
+        data: { labels: KO_CATS.map(function(c){return c.label;}), datasets: [dsA_ko, dsB_ko] },
+        options: radarOpts,
       });
 
       /* ── 카테고리별 바 ── */
