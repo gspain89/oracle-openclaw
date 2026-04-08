@@ -225,7 +225,13 @@ echo "========================================="
 if [ -z "$DRY_RUN" ] && [ -z "$NO_NORMALIZE" ] && [ "$TOTAL_SUCCESS" -gt 0 ]; then
   echo ""
   echo "=== normalize.py: leaderboard.json 갱신 ==="
-  python3 "$REPO_ROOT/server/python/normalize.py" --repo-root "$REPO_ROOT"
+  # PinchBench 태스크 정의 디렉토리 (프롬프트 추출용)
+  PB_TASKS_DIR="${HOME}/pinchbench-skill/tasks"
+  PB_TASKS_ARG=""
+  if [ -d "$PB_TASKS_DIR" ]; then
+    PB_TASKS_ARG="--pinchbench-tasks $PB_TASKS_DIR"
+  fi
+  python3 "$REPO_ROOT/server/python/normalize.py" --repo-root "$REPO_ROOT" $PB_TASKS_ARG
 fi
 
 # ── 다음 단계 안내 ──

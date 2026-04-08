@@ -15,6 +15,29 @@ const hasPB = models.some((m: any) => m.scores?.pinchbench);
 const ranked = [...models]
   .filter((m: any) => m.scores?.pinchbench)
   .sort((a: any, b: any) => b.scores.pinchbench.best - a.scores.pinchbench.best);
+
+const categories = [
+  { id: 'understanding', name: '이해/기억', count: 6,
+    desc: 'comprehension(4) + context(1) + memory(1)',
+    tasks: '문서 요약, 이메일 검색, PDF 요약, OpenClaw 이해, 컨텍스트 기억, 지식 저장' },
+  { id: 'research', name: '조사/분석', count: 6,
+    desc: 'research(4) + synthesis(1) + data_analysis(1)',
+    tasks: '주식 조사, 컨퍼런스 조사, 시장 조사, Polymarket, 일일 요약, 스프레드시트 분석' },
+  { id: 'creation', name: '생성/작문', count: 4,
+    desc: 'writing(2) + creative(1) + content_transformation(1)',
+    tasks: '블로그 작성, 이메일 작성, 이미지 생성, 콘텐츠 인간화' },
+  { id: 'execution', name: '실행/코딩', count: 5,
+    desc: 'file_ops(3) + coding(1) + complex(1)',
+    tasks: '날씨 스크립트, 파일 구조, 프로젝트 생성, 파일 검색/치환, API 워크플로' },
+  { id: 'basic', name: '기본/관리', count: 3,
+    desc: 'calendar(1) + organization(1) + basic(1)',
+    tasks: '새니티 체크, 캘린더 이벤트, 이메일 분류' },
+];
+
+const chartData = JSON.stringify(ranked.map((m: any) => ({
+  name: m.name,
+  categories: m.scores.pinchbench.categories || {},
+})));
 ---
 
 <Layout title="PinchBench">
@@ -131,6 +154,40 @@ const ranked = [...models]
     </div>
   )}
 
+  {hasPB && (
+    <section class="chart-card card" style="margin-top:24px;">
+      <h3>카테고리별 비교</h3>
+      <p class="chart-sub">24개 태스크를 5개 그룹으로 묶어 비교합니다.</p>
+      <div class="chart-wrap">
+        <canvas id="category-chart" height="70"></canvas>
+      </div>
+    </section>
+  )}
+
+  <div class="categories">
+    {categories.map(cat => (
+      <div class="cat-card card">
+        <div class="cat-header">
+          <h3>{cat.name}</h3>
+          <span class="cat-count">{cat.count}개 태스크</span>
+        </div>
+        <p class="cat-desc">{cat.tasks}</p>
+        <p class="cat-source">{cat.desc}</p>
+        {hasPB && (
+          <div class="cat-scores">
+            {ranked.slice(0, 5).map((m: any, i: number) => (
+              <div class="cat-score-row">
+                <span class="cat-score-rank">{i+1}.</span>
+                <span class="cat-score-name">{m.name}</span>
+                <span class="cat-score-val">{(m.scores.pinchbench.categories?.[cat.id] || 0).toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+
   <div class="card about-card" style="margin-top:24px;">
     <h3>PinchBench 개요</h3>
     <div class="about-grid">
@@ -162,6 +219,38 @@ const ranked = [...models]
   td.col-rank { text-align: center; }
   .std-val { color: var(--text-3); font-size: 0.78rem; }
 
+  .chart-sub {
+    font-size: 0.8rem; color: var(--text-3); margin: 4px 0 0;
+  }
+  .chart-wrap { margin-top: 16px; }
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+    animation: fade-up 0.5s var(--ease-out-expo) 0.15s backwards;
+  }
+  .cat-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+  }
+  .cat-count {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-3);
+    padding: 2px 8px; background: var(--bg-warm); border-radius: var(--radius-sm);
+  }
+  .cat-desc { font-size: 0.82rem; color: var(--text-2); line-height: 1.5; margin-bottom: 4px; }
+  .cat-source {
+    font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-3);
+    margin-bottom: 12px;
+  }
+  .cat-scores { display: flex; flex-direction: column; gap: 4px; }
+  .cat-score-row {
+    display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; align-items: center;
+    padding: 4px 8px; background: var(--bg-card-alt); border-radius: 4px; font-size: 0.8rem;
+  }
+  .cat-score-rank { font-family: var(--font-mono); color: var(--text-3); font-size: 0.72rem; }
+  .cat-score-name { color: var(--text-2); }
+  .cat-score-val { font-family: var(--font-mono); font-weight: 600; color: var(--accent); }
+
   .about-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -185,3 +274,92 @@ const ranked = [...models]
   }
   .about-item p { font-size: 0.82rem; color: var(--text-2); line-height: 1.5; }
 </style>
+
+<script is:inline define:vars={{ chartData }}>
+  document.addEventListener('DOMContentLoaded', function() {
+    var models = JSON.parse(chartData);
+    var ctx = document.getElementById('category-chart');
+    if (!ctx || !models.length) return;
+
+    var cats = ['understanding', 'research', 'creation', 'execution', 'basic'];
+    var catLabels = ['이해/기억', '조사/분석', '생성/작문', '실행/코딩', '기본/관리'];
+    var catColors = ['#2563a8', '#8c5e3c', '#2d7a3e', '#7c3aed', '#c4842d'];
+
+    var labels = models.map(function(m) { return m.name; });
+    var datasets = cats.map(function(cat, ci) {
+      return {
+        label: catLabels[ci],
+        data: models.map(function(m) { return m.categories[cat] || 0; }),
+        backgroundColor: catColors[ci] + 'aa',
+        borderColor: catColors[ci],
+        borderWidth: 1.5,
+        borderRadius: 4,
+        maxBarThickness: 48,
+      };
+    });
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            ticks: { color: '#6b5e50', font: { family: 'Noto Sans KR', size: 12 } },
+            grid: { display: false },
+            border: { color: 'rgba(120,100,70,0.15)' },
+          },
+          y: {
+            min: 0, max: 100,
+            ticks: {
+              color: '#9e9082',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: function(v) { return v + '%'; },
+            },
+            grid: { color: 'rgba(120,100,70,0.08)' },
+            border: { color: 'rgba(120,100,70,0.15)' },
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              color: '#6b5e50',
+              font: { family: 'Noto Sans KR', size: 11 },
+              usePointStyle: true,
+              pointStyle: 'rect',
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(26,20,16,0.92)',
+            titleColor: '#f0ead8',
+            bodyColor: '#f0ead8',
+            borderColor: 'rgba(120,100,70,0.3)',
+            borderWidth: 1,
+            bodyFont: { family: 'IBM Plex Mono' },
+            callbacks: {
+              label: function(c) { return c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%'; }
+            }
+          }
+        },
+        animation: { duration: 700, easing: 'easeOutCubic' },
+      },
+      plugins: [{
+        afterDatasetsDraw: function(chart) {
+          var c = chart.ctx;
+          chart.data.datasets.forEach(function(ds, i) {
+            var meta = chart.getDatasetMeta(i);
+            meta.data.forEach(function(bar, idx) {
+              var val = ds.data[idx];
+              if (val > 0) {
+                c.fillStyle = '#4a3f35';
+                c.textAlign = 'center';
+                c.font = '600 11px IBM Plex Mono';
+                c.fillText(val.toFixed(1), bar.x, bar.y - 6);
+              }
+            });
+          });
+        }
+      }]
+    });
+  });
+</script>

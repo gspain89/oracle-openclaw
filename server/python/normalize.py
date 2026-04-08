@@ -33,6 +33,33 @@ MIN_TASKS = {
     "clawbench_ko": 10, # 전체 10개
 }
 
+# PinchBench 15개 카테고리 → 5개 그룹 매핑
+PB_CATEGORY_GROUPS = {
+    "comprehension": "understanding",
+    "context": "understanding",
+    "memory": "understanding",
+    "research": "research",
+    "synthesis": "research",
+    "data_analysis": "research",
+    "writing": "creation",
+    "creative": "creation",
+    "content_transformation": "creation",
+    "file_ops": "execution",
+    "coding": "execution",
+    "complex": "execution",
+    "calendar": "basic",
+    "organization": "basic",
+    "basic": "basic",
+}
+
+PB_GROUP_LABELS = {
+    "understanding": "이해/기억",
+    "research": "조사/분석",
+    "creation": "생성/작문",
+    "execution": "실행/코딩",
+    "basic": "기본/관리",
+}
+
 # provider ID → 표시명 매핑 (새 프로바이더 추가 시 여기에 한 줄 추가)
 PROVIDER_LABELS = {
     "openrouter": "OpenRouter",
@@ -51,6 +78,8 @@ def resolve_paths(repo_root: Path):
         "models": repo_root / "server" / "config" / "models.json",
         "output": repo_root / "results" / "normalized" / "leaderboard.json",
         "runs_output": repo_root / "results" / "normalized" / "runs.json",
+        "details_dir": repo_root / "results" / "normalized" / "run-details",
+        "ko_tasks": repo_root / "server" / "claw-bench-ko" / "tasks",
     }
 
 
@@ -97,6 +126,133 @@ def load_registry(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     return {m["id"]: m for m in data["models"]}
+
+
+# ── 태스크 프롬프트 로딩 ──
+
+def load_pinchbench_prompts(tasks_dir: Path | None) -> dict[str, str]:
+    """PinchBench 태스크 .md 파일에서 ## Prompt 섹션 추출"""
+    prompts = {}
+    if not tasks_dir or not tasks_dir.exists():
+        return prompts
+    for md_file in tasks_dir.glob("task_*.md"):
+        content = md_file.read_text(encoding="utf-8")
+        # frontmatter에서 id 추출
+        task_id = ""
+        in_fm = False
+        for line in content.split("\n"):
+            if line.strip() == "---":
+                in_fm = not in_fm
+                continue
+            if in_fm and line.startswith("id:"):
+                task_id = line.split(":", 1)[1].strip()
+                break
+        # ## Prompt ~ 다음 ## 사이 텍스트
+        lines = []
+        in_prompt = False
+        for line in content.split("\n"):
+            if line.strip().startswith("## Prompt"):
+                in_prompt = True
+                continue
+            if in_prompt and line.strip().startswith("## "):
+                break
+            if in_prompt:
+                lines.append(line)
+        prompt = "\n".join(lines).strip()
+        if task_id and prompt:
+            prompts[task_id] = prompt
+    return prompts
+
+
+def load_korean_prompts(tasks_dir: Path | None) -> dict[str, str]:
+    """ClawBench-KO task.json에서 prompt 필드 추출"""
+    prompts = {}
+    if not tasks_dir or not tasks_dir.exists():
+        return prompts
+    for task_dir in tasks_dir.iterdir():
+        if not task_dir.is_dir():
+            continue
+        task_json = task_dir / "task.json"
+        if not task_json.exists():
+            continue
+        with open(task_json, encoding="utf-8") as f:
+            data = json.load(f)
+        tid = data.get("id", task_dir.name)
+        prompt = data.get("prompt", "")
+        if tid and prompt:
+            prompts[tid] = prompt
+    return prompts
+
+
+# ── per-task 상세 추출 ──
+
+def extract_task_details(raw: dict, bench: str, prompts: dict[str, str]) -> list[dict]:
+    """raw 결과 JSON에서 per-task 상세를 추출
+
+    반환: [{task_id, name, category, group?, prompt?, score, grading_type,
+            breakdown/notes/feedback/checks, execution_time, status, timed_out}]
+    """
+    tasks = raw.get("tasks", [])
+    details = []
+    seen = set()
+
+    for t in tasks:
+        tid = t.get("task_id") or t.get("frontmatter", {}).get("id", "")
+        if tid in seen:
+            continue
+        seen.add(tid)
+
+        fm = t.get("frontmatter", {})
+        gr = t.get("grading", {})
+        runs = gr.get("runs", [])
+        run0 = runs[0] if runs else {}
+
+        detail = {
+            "task_id": tid,
+            "name": fm.get("name", tid),
+            "category": fm.get("category", "unknown"),
+            "grading_type": fm.get("grading_type", "unknown"),
+            "score": round(gr.get("mean", 0) * 100, 1),
+            "execution_time": round(t.get("execution_time", 0), 1),
+            "status": t.get("status", "unknown"),
+            "timed_out": t.get("timed_out", False),
+        }
+
+        if tid in prompts:
+            detail["prompt"] = prompts[tid]
+
+        if bench == "pinchbench":
+            # PinchBench 그룹 카테고리
+            raw_cat = fm.get("category", "unknown").lower()
+            detail["group"] = PB_CATEGORY_GROUPS.get(raw_cat, raw_cat)
+            # automated: breakdown = {항목: 점수}, judge: breakdown + notes
+            if run0.get("breakdown"):
+                detail["breakdown"] = run0["breakdown"]
+            if run0.get("notes"):
+                detail["notes"] = run0["notes"]
+            if run0.get("grading_type"):
+                detail["grading_type"] = run0["grading_type"]
+
+        elif bench == "clawbench_ko":
+            if "automated" in run0 and "judge" in run0:
+                # hybrid — automated + judge 모두 포함
+                detail["automated"] = run0["automated"]
+                detail["judge"] = run0["judge"]
+                detail["weights"] = run0.get("weights", {})
+            elif "details" in run0:
+                # automated — 체크 리스트
+                detail["checks"] = run0["details"]
+            elif "breakdown" in run0:
+                # llm_judge
+                detail["breakdown"] = run0["breakdown"]
+                if run0.get("feedback"):
+                    detail["feedback"] = run0["feedback"]
+                if run0.get("judge_model"):
+                    detail["judge_model"] = run0["judge_model"]
+
+        details.append(detail)
+
+    return details
 
 
 # ── 결과 파일 수집 ──
@@ -179,11 +335,29 @@ def parse_pinchbench_run(raw: dict) -> dict | None:
     ts = raw.get("timestamp", 0)
     date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d") if ts else ""
 
+    # 카테고리별 점수 (15개 → 5개 그룹)
+    seen_tasks = set()
+    group_scores: dict[str, list[float]] = {}
+    for t in tasks:
+        tid = t.get("task_id") or t.get("frontmatter", {}).get("id", "")
+        if tid in seen_tasks:
+            continue
+        seen_tasks.add(tid)
+        raw_cat = t.get("frontmatter", {}).get("category", "unknown").lower()
+        group = PB_CATEGORY_GROUPS.get(raw_cat, raw_cat)
+        mean = t.get("grading", {}).get("mean", 0)
+        group_scores.setdefault(group, []).append(mean * 100)
+
+    categories = {}
+    for grp, scores in group_scores.items():
+        categories[grp] = round(sum(scores) / len(scores), 1) if scores else 0
+
     return {
         "score": round(float(score), 1),
         "completed": completed,
         "total": total,
         "date": date_str,
+        "categories": categories,
         "avg_seconds_per_task": round(avg_sec, 1),
         "model_raw": raw.get("model", ""),
     }
@@ -389,7 +563,17 @@ def load_existing_leaderboard(path: Path) -> dict:
 
 # ── 메인 빌드 ──
 
-def build_leaderboard(registry: dict, paths: dict) -> dict:
+def build_leaderboard(registry: dict, paths: dict,
+                      pb_prompts: dict[str, str] | None = None,
+                      ko_prompts: dict[str, str] | None = None) -> dict:
+    pb_prompts = pb_prompts or {}
+    ko_prompts = ko_prompts or {}
+
+    # run-details 출력 디렉토리
+    details_dir = paths.get("details_dir")
+    if details_dir:
+        details_dir.mkdir(parents=True, exist_ok=True)
+
     # 기존 leaderboard 로드 — raw 데이터가 없는 모델은 여기서 유지
     existing = load_existing_leaderboard(paths["output"])
     if existing:
@@ -447,8 +631,26 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
             continue
 
         pb_runs.setdefault(model_id, []).append(parsed)
-        all_runs.append(_make_run_record(
-            fpath, "pinchbench", model_id=model_id, parsed=parsed, included=True))
+        run_rec = _make_run_record(
+            fpath, "pinchbench", model_id=model_id, parsed=parsed, included=True)
+
+        # per-task 상세 → run-details/ 파일 생성
+        if details_dir:
+            task_details = extract_task_details(raw, "pinchbench", pb_prompts)
+            detail_name = f"pb_{fpath.stem}.json"
+            detail_path = details_dir / detail_name
+            detail_data = {
+                "model_id": model_id,
+                "benchmark": "pinchbench",
+                "date": parsed["date"],
+                "score": parsed["score"],
+                "tasks": task_details,
+            }
+            with open(detail_path, "w", encoding="utf-8") as f:
+                json.dump(detail_data, f, ensure_ascii=False, indent=2)
+            run_rec["detail_file"] = f"run-details/{detail_name}"
+
+        all_runs.append(run_rec)
 
     for fpath in ko_files:
         try:
@@ -476,8 +678,29 @@ def build_leaderboard(registry: dict, paths: dict) -> dict:
             continue
 
         ko_runs.setdefault(model_id, []).append(parsed)
-        all_runs.append(_make_run_record(
-            fpath, "clawbench_ko", model_id=model_id, parsed=parsed, included=True))
+        run_rec = _make_run_record(
+            fpath, "clawbench_ko", model_id=model_id, parsed=parsed, included=True)
+
+        # per-task 상세 → run-details/ 파일 생성
+        if details_dir:
+            task_details = extract_task_details(raw, "clawbench_ko", ko_prompts)
+            detail_name = f"ko_{fpath.stem}.json"
+            # subdir 형태(results.json)면 부모 디렉토리명 사용
+            if fpath.name == "results.json":
+                detail_name = f"ko_{fpath.parent.name}.json"
+            detail_path = details_dir / detail_name
+            detail_data = {
+                "model_id": model_id,
+                "benchmark": "clawbench_ko",
+                "date": parsed["date"],
+                "score": parsed["score"],
+                "tasks": task_details,
+            }
+            with open(detail_path, "w", encoding="utf-8") as f:
+                json.dump(detail_data, f, ensure_ascii=False, indent=2)
+            run_rec["detail_file"] = f"run-details/{detail_name}"
+
+        all_runs.append(run_rec)
 
     # 리더보드 모델 엔트리 빌드
     models = []
@@ -592,6 +815,8 @@ def main():
     parser = argparse.ArgumentParser(description="벤치마크 결과 → leaderboard.json")
     parser.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT),
                         help="저장소 루트 경로")
+    parser.add_argument("--pinchbench-tasks", default="",
+                        help="PinchBench 태스크 .md 디렉토리 (프롬프트 추출용)")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -605,7 +830,17 @@ def main():
     registry = load_registry(paths["models"])
     print(f"등록 모델: {len(registry)}개")
 
-    leaderboard, all_runs = build_leaderboard(registry, paths)
+    # 태스크 프롬프트 로딩
+    pb_tasks_dir = Path(args.pinchbench_tasks) if args.pinchbench_tasks else None
+    pb_prompts = load_pinchbench_prompts(pb_tasks_dir)
+    ko_prompts = load_korean_prompts(paths["ko_tasks"])
+    if pb_prompts:
+        print(f"PinchBench 프롬프트: {len(pb_prompts)}개 태스크")
+    if ko_prompts:
+        print(f"ClawBench-KO 프롬프트: {len(ko_prompts)}개 태스크")
+
+    leaderboard, all_runs = build_leaderboard(registry, paths,
+                                               pb_prompts, ko_prompts)
 
     models = leaderboard["models"]
     new_count = leaderboard["meta"].get("_new_from_raw", 0)

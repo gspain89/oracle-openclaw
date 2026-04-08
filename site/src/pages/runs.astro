@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 
 let runsData: any = { meta: { total: 0, included: 0, excluded: 0 }, runs: [] };
@@ -9,11 +9,20 @@ try {
   runsData = JSON.parse(raw);
 } catch {}
 
+const detailsMap: Record<string, any> = {};
+try {
+  const detailsDir = resolve(process.cwd(), '..', 'results', 'normalized', 'run-details');
+  for (const f of readdirSync(detailsDir).filter((x: string) => x.endsWith('.json'))) {
+    detailsMap['run-details/' + f] = JSON.parse(readFileSync(resolve(detailsDir, f), 'utf-8'));
+  }
+} catch {}
+
 const { meta, runs } = runsData;
 const benchLabels: Record<string, string> = {
   pinchbench: 'PinchBench',
   clawbench_ko: 'ClawBench-KO',
 };
+const detailsJson = JSON.stringify(detailsMap);
 ---
 
 <Layout title="실행 기록">
@@ -61,7 +70,7 @@ const benchLabels: Record<string, string> = {
           </thead>
           <tbody>
             {runs.map((r: any) => (
-              <tr class={`run-row ${r.included ? 'included' : 'excluded'}`} data-included={r.included ? 'yes' : 'no'}>
+              <tr class={`run-row ${r.included ? 'included' : 'excluded'}${r.detail_file ? ' has-detail' : ''}`} data-included={r.included ? 'yes' : 'no'} data-detail={r.detail_file || ''}>
                 <td class="col-status">
                   {r.included
                     ? <span class="status-badge status-included" title="리더보드에 포함됨">포함</span>
@@ -104,7 +113,24 @@ const benchLabels: Record<string, string> = {
   <div class="card help-card">
     <h3>삭제 방법</h3>
     <p>서버에서 해당 run을 삭제하고 리더보드에서 제외하려면:</p>
-    <pre><code># 1) 결과 파일/디렉토리 삭제{'\n'}rm -rf &lt;삭제 경로&gt;{'\n'}{'\n'}# 2) normalize 재실행{'\n'}python3 server/python/normalize.py{'\n'}{'\n'}# 3) 배포{'\n'}bash server/scripts/deploy-results.sh</code></pre>
+    <pre><code set:html={`# 1) 결과 파일/디렉토리 삭제\nrm -rf <삭제 경로>\n\n# 2) normalize 재실행\npython3 server/python/normalize.py\n\n# 3) 배포\nbash server/scripts/deploy-results.sh`} /></pre>
+  </div>
+
+  <div id="detail-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <h2 id="modal-title"></h2>
+          <div class="modal-meta">
+            <span id="modal-bench" class="bench-tag"></span>
+            <span id="modal-date" class="modal-date"></span>
+            <span id="modal-score" class="modal-score-badge"></span>
+          </div>
+        </div>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
   </div>
 </Layout>
 
@@ -234,10 +260,141 @@ const benchLabels: Record<string, string> = {
     color: var(--text);
     line-height: 1.7;
   }
+
+  tr.has-detail { cursor: pointer; }
+  tr.has-detail:hover { background: var(--bg-warm); }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26, 20, 16, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: auto; }
+  .modal-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: min(92vw, 720px);
+    max-height: 85vh;
+    display: flex; flex-direction: column;
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal-container { transform: translateY(0); }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 20px 24px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .modal-title-area h2 { font-size: 1.1rem; margin: 0 0 6px; font-weight: 700; }
+  .modal-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .modal-date { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-3); }
+  .modal-score-badge {
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700;
+    padding: 2px 10px; border-radius: 4px;
+  }
+  .modal-close {
+    background: none; border: none; font-size: 1.6rem;
+    color: var(--text-3); cursor: pointer; padding: 0 4px;
+    line-height: 1; transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 16px 24px 24px; overflow-y: auto; flex: 1; }
+
+  .task-card {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .task-card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: var(--bg-card-alt);
+    cursor: pointer; user-select: none; transition: background 0.15s;
+  }
+  .task-card-header:hover { background: var(--bg-warm); }
+  .task-arrow {
+    font-size: 0.7rem; color: var(--text-3);
+    transition: transform 0.2s; flex-shrink: 0; width: 12px; text-align: center;
+  }
+  .task-card.open .task-arrow { transform: rotate(90deg); }
+  .task-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .task-status-dot.pass { background: var(--green); }
+  .task-status-dot.partial { background: var(--gold); }
+  .task-status-dot.fail { background: var(--red); }
+  .task-name {
+    font-size: 0.84rem; font-weight: 600; color: var(--text);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .task-score-chip {
+    font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600;
+    padding: 1px 8px; border-radius: 3px; flex-shrink: 0;
+  }
+  .task-score-chip.pass { background: rgba(45,122,62,0.1); color: var(--green); }
+  .task-score-chip.partial { background: rgba(196,132,45,0.1); color: var(--gold); }
+  .task-score-chip.fail { background: rgba(201,42,42,0.08); color: var(--red); }
+  .task-meta-chips { display: flex; gap: 4px; flex-shrink: 0; }
+  .task-meta-chip {
+    font-family: var(--font-mono); font-size: 0.65rem;
+    padding: 1px 6px; border-radius: 3px;
+    background: var(--bg-warm); color: var(--text-3);
+  }
+  .task-card-body {
+    display: none; padding: 12px 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .task-card.open .task-card-body { display: block; }
+  .detail-section { margin-bottom: 12px; }
+  .detail-section:last-child { margin-bottom: 0; }
+  .detail-label {
+    font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+    color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .detail-prompt {
+    font-size: 0.8rem; color: var(--text-2); line-height: 1.6;
+    background: var(--bg-card-alt); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 12px;
+    max-height: 160px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .detail-feedback {
+    font-size: 0.8rem; color: var(--text-2); line-height: 1.6;
+    background: var(--bg-card-alt); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 12px;
+    max-height: 200px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .check-list { list-style: none; padding: 0; margin: 0; }
+  .check-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 0; font-size: 0.8rem; color: var(--text-2);
+  }
+  .check-icon { font-size: 0.85rem; flex-shrink: 0; }
+  .check-icon.pass { color: var(--green); }
+  .check-icon.fail { color: var(--red); }
+  .breakdown-grid {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 2px 12px; font-size: 0.8rem;
+  }
+  .breakdown-key { color: var(--text-2); }
+  .breakdown-val { font-family: var(--font-mono); font-weight: 600; color: var(--text); text-align: right; }
+  .time-chip { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-3); }
+
+  @media (max-width: 600px) {
+    .modal-container { width: 98vw; max-height: 90vh; border-radius: var(--radius-md); }
+    .modal-header { padding: 14px 16px 10px; }
+    .modal-body { padding: 12px 16px 18px; }
+  }
 </style>
 
-<script is:inline>
+<script is:inline define:vars={{ detailsJson }}>
   document.addEventListener('DOMContentLoaded', function() {
+    var allDetails = JSON.parse(detailsJson);
     var filterBtns = document.querySelectorAll('.filter-btn');
     var rows = document.querySelectorAll('.run-row');
 
@@ -246,34 +403,168 @@ const benchLabels: Record<string, string> = {
         filterBtns.forEach(function(b) { b.classList.remove('active'); });
         btn.classList.add('active');
         var filter = btn.dataset.filter;
-
         rows.forEach(function(row) {
-          if (filter === 'all') {
-            row.classList.remove('hidden');
-          } else if (filter === 'included') {
-            row.classList.toggle('hidden', row.dataset.included !== 'yes');
-          } else {
-            row.classList.toggle('hidden', row.dataset.included === 'yes');
-          }
+          if (filter === 'all') row.classList.remove('hidden');
+          else if (filter === 'included') row.classList.toggle('hidden', row.dataset.included !== 'yes');
+          else row.classList.toggle('hidden', row.dataset.included === 'yes');
         });
       });
     });
 
-    /* rm 경로 클릭 → 클립보드 복사 */
     document.querySelectorAll('.rm-path').forEach(function(el) {
-      el.addEventListener('click', function() {
-        var path = el.textContent;
-        var cmd = 'rm -rf ' + path;
-        navigator.clipboard.writeText(cmd).then(function() {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navigator.clipboard.writeText('rm -rf ' + el.textContent).then(function() {
           var orig = el.textContent;
           el.textContent = 'copied!';
           el.style.color = 'var(--green)';
-          setTimeout(function() {
-            el.textContent = orig;
-            el.style.color = '';
-          }, 1200);
+          setTimeout(function() { el.textContent = orig; el.style.color = ''; }, 1200);
         });
       });
+    });
+
+    var modal = document.getElementById('detail-modal');
+    var modalTitle = document.getElementById('modal-title');
+    var modalBench = document.getElementById('modal-bench');
+    var modalDate = document.getElementById('modal-date');
+    var modalScore = document.getElementById('modal-score');
+    var modalBody = document.getElementById('modal-body');
+
+    function scoreClass(s) {
+      return s >= 80 ? 'pass' : s >= 40 ? 'partial' : 'fail';
+    }
+
+    function esc(str) {
+      var d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function renderChecks(checks) {
+      if (!checks || !checks.length) return '';
+      return '<ul class="check-list">' + checks.map(function(c) {
+        var ok = c.passed || c.pass;
+        return '<li class="check-item"><span class="check-icon ' + (ok ? 'pass' : 'fail') + '">' +
+          (ok ? '\u2713' : '\u2717') + '</span>' + esc(c.check || c.name || c.description || '') + '</li>';
+      }).join('') + '</ul>';
+    }
+
+    function renderBreakdown(bd) {
+      if (!bd || typeof bd !== 'object') return '';
+      var keys = Object.keys(bd);
+      if (!keys.length) return '';
+      return '<div class="breakdown-grid">' + keys.map(function(k) {
+        var v = bd[k];
+        return '<span class="breakdown-key">' + esc(k) + '</span><span class="breakdown-val">' +
+          esc(typeof v === 'number' ? v.toFixed(1) : String(v)) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    function renderTask(t, idx) {
+      var sc = scoreClass(t.score);
+      var h = '<div class="task-card" id="tc-' + idx + '">';
+      h += '<div class="task-card-header" data-tc="' + idx + '">';
+      h += '<span class="task-arrow">\u25B6</span>';
+      h += '<span class="task-status-dot ' + sc + '"></span>';
+      h += '<span class="task-name">' + esc(t.name || t.task_id) + '</span>';
+      h += '<div class="task-meta-chips">';
+      if (t.grading_type) h += '<span class="task-meta-chip">' + esc(t.grading_type) + '</span>';
+      if (t.group) h += '<span class="task-meta-chip">' + esc(t.group) + '</span>';
+      else if (t.category) h += '<span class="task-meta-chip">' + esc(t.category) + '</span>';
+      h += '</div>';
+      h += '<span class="task-score-chip ' + sc + '">' + t.score.toFixed(1) + '%</span>';
+      h += '</div>';
+
+      h += '<div class="task-card-body">';
+      if (t.execution_time > 0 || t.timed_out) {
+        h += '<div style="margin-bottom:10px">';
+        if (t.execution_time > 0) h += '<span class="time-chip">' + t.execution_time.toFixed(1) + 's</span> ';
+        if (t.timed_out) h += '<span class="task-meta-chip" style="color:var(--red)">TIMEOUT</span>';
+        h += '</div>';
+      }
+      if (t.prompt) {
+        h += '<div class="detail-section"><div class="detail-label">PROMPT</div>';
+        h += '<div class="detail-prompt">' + esc(t.prompt) + '</div></div>';
+      }
+      var checks = t.checks || (t.automated && t.automated.details) || null;
+      if (checks && checks.length) {
+        h += '<div class="detail-section"><div class="detail-label">AUTOMATED CHECKS</div>';
+        h += renderChecks(checks);
+        if (t.automated && t.automated.score != null)
+          h += '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-3)">Score: ' + (t.automated.score * 100).toFixed(1) + '%</div>';
+        h += '</div>';
+      }
+      var bd = t.breakdown || (t.judge && t.judge.breakdown) || null;
+      if (bd) {
+        h += '<div class="detail-section"><div class="detail-label">JUDGE BREAKDOWN</div>';
+        h += renderBreakdown(bd);
+        if (t.judge && t.judge.score != null)
+          h += '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-3)">Score: ' + (t.judge.score * 100).toFixed(1) + '%</div>';
+        h += '</div>';
+      }
+      if (t.weights && (t.weights.automated != null || t.weights.judge != null)) {
+        h += '<div class="detail-section"><div class="detail-label">WEIGHTS</div>';
+        h += '<div style="font-size:0.78rem;color:var(--text-2)">Automated ' + ((t.weights.automated||0)*100) + '% / Judge ' + ((t.weights.judge||0)*100) + '%</div></div>';
+      }
+      if (t.notes) {
+        h += '<div class="detail-section"><div class="detail-label">JUDGE NOTES</div>';
+        h += '<div class="detail-feedback">' + esc(t.notes) + '</div></div>';
+      }
+      var fb = t.feedback || (t.judge && t.judge.feedback) || null;
+      if (fb) {
+        h += '<div class="detail-section"><div class="detail-label">JUDGE FEEDBACK</div>';
+        h += '<div class="detail-feedback">' + esc(fb) + '</div></div>';
+      }
+      if (t.judge_model)
+        h += '<div style="font-size:0.7rem;color:var(--text-3);margin-top:4px">Judge: ' + esc(t.judge_model) + '</div>';
+      h += '</div></div>';
+      return h;
+    }
+
+    function openModal(key) {
+      var data = allDetails[key];
+      if (!data) return;
+      modalTitle.textContent = data.model_id;
+      modalBench.textContent = data.benchmark === 'pinchbench' ? 'PinchBench' : 'ClawBench-KO';
+      modalDate.textContent = data.date || '';
+      modalScore.textContent = data.score.toFixed(1) + '%';
+      modalScore.className = 'modal-score-badge task-score-chip ' + scoreClass(data.score);
+
+      var tasks = (data.tasks || []).slice().sort(function(a, b) { return b.score - a.score; });
+      var pass = tasks.filter(function(t) { return t.score >= 80; }).length;
+      var body = '<div style="font-size:0.82rem;color:var(--text-2);margin-bottom:12px">' +
+        tasks.length + '\uAC1C \uD0DC\uC2A4\uD06C \u00B7 <span style="color:var(--green)">' + pass +
+        ' pass</span> \u00B7 <span style="color:var(--red)">' + (tasks.length - pass) + ' fail/partial</span></div>';
+      tasks.forEach(function(t, i) { body += renderTask(t, i); });
+      modalBody.innerHTML = body;
+
+      modalBody.querySelectorAll('.task-card-header').forEach(function(hdr) {
+        hdr.addEventListener('click', function() {
+          document.getElementById('tc-' + hdr.dataset.tc).classList.toggle('open');
+        });
+      });
+
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    rows.forEach(function(row) {
+      if (!row.classList.contains('has-detail')) return;
+      row.addEventListener('click', function(e) {
+        if (e.target.closest('.rm-path')) return;
+        if (row.dataset.detail) openModal(row.dataset.detail);
+      });
+    });
+
+    modal.querySelector('.modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
     });
   });
 </script>
