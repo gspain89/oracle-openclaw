@@ -343,10 +343,14 @@ const detailsJson = JSON.stringify(detailsMap);
     background: var(--bg-card);
   }
   .slide-panel .tc-head {
-    display: grid; grid-template-columns: 6px 1fr auto; gap: 8px;
+    display: grid; grid-template-columns: 18px 6px 1fr auto; gap: 6px;
     align-items: center;
     padding: 6px 10px; cursor: pointer; user-select: none;
     transition: background 0.12s;
+  }
+  .slide-panel .tc-num {
+    font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600;
+    color: var(--text-3); text-align: right;
   }
   .slide-panel .tc-head:hover { background: var(--bg-card-alt); }
   .slide-panel .tc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
@@ -482,10 +486,12 @@ const detailsJson = JSON.stringify(detailsMap);
       }).join('') + '</div>';
     }
 
-    function renderTask(t, i) {
+    function renderTask(t, i, total) {
       var cls = sc(t.score);
+      var num = (i + 1) + '/' + total;
       var h = '<div class="tc" id="tc-' + i + '">';
       h += '<div class="tc-head" data-i="' + i + '">';
+      h += '<span class="tc-num">' + (i + 1) + '</span>';
       h += '<span class="tc-dot ' + cls + '"></span>';
       h += '<div class="tc-info"><span class="tc-name">' + esc(t.name||t.task_id) + '</span>';
       h += '<div class="tc-tags">';
@@ -547,14 +553,18 @@ const detailsJson = JSON.stringify(detailsMap);
         tag('p-tag-date', data.date || '') + ' ' +
         '<span class="p-tag p-tag-score ' + cls + '">' + data.score.toFixed(1) + '%</span>';
 
-      var tasks = (data.tasks||[]).slice().sort(function(a,b) { return b.score - a.score; });
+      var tasks = (data.tasks||[]).slice().sort(function(a,b) {
+        var aid = a.task_id || a.name || '';
+        var bid = b.task_id || b.name || '';
+        return aid.localeCompare(bid);
+      });
       var pass = tasks.filter(function(t) { return t.score >= 80; }).length;
 
       var h = '<div class="panel-summary">' +
         '<span>' + tasks.length + '\uAC1C task</span>' +
         '<span style="color:var(--green);font-weight:600">' + pass + ' pass</span>' +
         '<span style="color:var(--red);font-weight:600">' + (tasks.length-pass) + ' fail</span></div>';
-      tasks.forEach(function(t, i) { h += renderTask(t, i); });
+      tasks.forEach(function(t, i) { h += renderTask(t, i, tasks.length); });
       pBody.innerHTML = h;
 
       pBody.querySelectorAll('.tc-head').forEach(function(hd) {
