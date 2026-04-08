@@ -282,15 +282,17 @@ const chartData = JSON.stringify(ranked.map((m: any) => ({
 
     var cats = ['understanding', 'research', 'creation', 'execution', 'basic'];
     var catLabels = ['이해/기억', '조사/분석', '생성/작문', '실행/코딩', '기본/관리'];
-    var catColors = ['#2563a8', '#8c5e3c', '#2d7a3e', '#7c3aed', '#c4842d'];
+    var modelColors = ['#8c2416', '#2563a8', '#2d7a3e', '#7c3aed', '#c4842d', '#d4553a', '#1a6b5c', '#8c5e3c'];
 
-    var labels = models.map(function(m) { return m.name; });
-    var datasets = cats.map(function(cat, ci) {
+    // X축 = 카테고리, 범례 = 모델
+    var labels = catLabels;
+    var datasets = models.map(function(m, mi) {
+      var color = modelColors[mi % modelColors.length];
       return {
-        label: catLabels[ci],
-        data: models.map(function(m) { return m.categories[cat] || 0; }),
-        backgroundColor: catColors[ci] + 'aa',
-        borderColor: catColors[ci],
+        label: m.name,
+        data: cats.map(function(cat) { return m.categories[cat] || 0; }),
+        backgroundColor: color + 'aa',
+        borderColor: color,
         borderWidth: 1.5,
         borderRadius: 4,
         maxBarThickness: 48,
