@@ -449,12 +449,25 @@ const detailsJson = JSON.stringify(detailsMap);
     function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     function tag(cls, txt) { return '<span class="p-tag ' + cls + '">' + esc(txt) + '</span>'; }
 
+    function checkText(c) {
+      var ck = c.check;
+      if (typeof ck === 'string') return ck;
+      if (ck && typeof ck === 'object') {
+        var t = ck.type || '';
+        if (ck.path) t += ': ' + ck.path;
+        if (ck.field) t += ' \u2192 ' + ck.field;
+        if (ck.expected != null) t += ' = ' + ck.expected;
+        if (ck.fields) t += ' [' + ck.fields.join(', ') + ']';
+        return t;
+      }
+      return c.name || c.description || '';
+    }
     function renderChecks(checks) {
       if (!checks || !checks.length) return '';
       return '<ul class="ck-list">' + checks.map(function(c) {
         var ok = c.passed || c.pass;
         return '<li class="ck-item"><span class="ck-icon ' + (ok?'pass':'fail') + '">' +
-          (ok?'\u2713':'\u2717') + '</span><span>' + esc(c.check||c.name||c.description||'') + '</span></li>';
+          (ok?'\u2713':'\u2717') + '</span><span>' + esc(checkText(c)) + '</span></li>';
       }).join('') + '</ul>';
     }
 
