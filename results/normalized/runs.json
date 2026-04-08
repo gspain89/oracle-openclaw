@@ -1,9 +1,9 @@
 {
   "meta": {
-    "generated_at": "2026-04-07T14:49:00Z",
-    "total": 5,
-    "included": 2,
-    "excluded": 3
+    "generated_at": "2026-04-08T00:14:39Z",
+    "total": 9,
+    "included": 4,
+    "excluded": 5
   },
   "runs": [
     {
@@ -15,7 +15,51 @@
       "completed": 16,
       "total": 24,
       "date": "2026-04-07",
-      "included": true
+      "included": true,
+      "categories": {
+        "basic": 58.0,
+        "research": 73.4,
+        "creation": 45.1,
+        "execution": 77.3,
+        "understanding": 51.5
+      },
+      "detail_file": "run-details/pb_upstage_solar-pro3_20260407-113533.json"
+    },
+    {
+      "file": "results/raw/pinchbench/qwen3.5-122b-a10b_20260407-152030.json",
+      "rm_path": "results/raw/pinchbench/qwen3.5-122b-a10b_20260407-152030.json",
+      "benchmark": "pinchbench",
+      "model_id": "qwen3.5-122b-a10b",
+      "score": 77.5,
+      "completed": 20,
+      "total": 24,
+      "date": "2026-04-07",
+      "included": true,
+      "categories": {
+        "basic": 96.2,
+        "research": 76.0,
+        "creation": 62.3,
+        "execution": 97.3,
+        "understanding": 63.2
+      },
+      "detail_file": "run-details/pb_qwen3.5-122b-a10b_20260407-152030.json"
+    },
+    {
+      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-232404.json",
+      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-232404.json",
+      "benchmark": "clawbench_ko",
+      "model_id": "qwen3.5-122b-a10b",
+      "score": 91.1,
+      "completed": 10,
+      "total": 10,
+      "date": "2026-04-07",
+      "included": true,
+      "categories": {
+        "data_processing": 98.5,
+        "document_generation": 79.7,
+        "korean_system": 92.8
+      },
+      "detail_file": "run-details/ko_qwen3_5-122b-a10b_20260407-232404.json"
     },
     {
       "file": "results/raw/korean/upstage_solar-pro3_20260407-140921.json",
@@ -31,7 +75,8 @@
         "data_processing": 32.3,
         "document_generation": 74.0,
         "korean_system": 43.0
-      }
+      },
+      "detail_file": "run-details/ko_upstage_solar-pro3_20260407-140921.json"
     },
     {
       "file": "results/raw/korean/solar-pro3_20260407-053225.json",
@@ -46,6 +91,23 @@
       "skip_reason": "부분 실행 (1/10 태스크)",
       "categories": {
         "data_processing": 84.6
+      }
+    },
+    {
+      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910.json",
+      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910.json",
+      "benchmark": "clawbench_ko",
+      "model_id": "qwen3.5-122b-a10b",
+      "score": 0.0,
+      "completed": 0,
+      "total": 10,
+      "date": "2026-04-07",
+      "included": false,
+      "skip_reason": "전체 0% (인프라/설정 실패 추정)",
+      "categories": {
+        "data_processing": 0.0,
+        "document_generation": 0.0,
+        "korean_system": 0.0
       }
     },
     {
@@ -76,6 +138,23 @@
       "skip_reason": "부분 실행 (1/10 태스크)",
       "categories": {
         "data_processing": 0.0
+      }
+    },
+    {
+      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910_retry/results.json",
+      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910_retry",
+      "benchmark": "clawbench_ko",
+      "model_id": "qwen3.5-122b-a10b",
+      "score": 0.0,
+      "completed": 0,
+      "total": 10,
+      "date": "2026-04-07",
+      "included": false,
+      "skip_reason": "전체 0% (인프라/설정 실패 추정)",
+      "categories": {
+        "data_processing": 0.0,
+        "document_generation": 0.0,
+        "korean_system": 0.0
       }
     }
   ]

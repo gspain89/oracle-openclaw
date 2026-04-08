@@ -1,11 +1,63 @@
 {
   "meta": {
-    "last_updated": "2026-04-07T23:49:37Z",
-    "total_runs": 2,
-    "generated_at": "2026-04-07T23:49:37Z",
-    "_new_from_raw": 0
+    "last_updated": "2026-04-08T00:14:39Z",
+    "total_runs": 4,
+    "generated_at": "2026-04-08T00:14:39Z",
+    "_new_from_raw": 2
   },
   "models": [
+    {
+      "id": "qwen3.5-122b-a10b",
+      "name": "Qwen 3.5 122B",
+      "provider": "dashscope",
+      "provider_label": "DashScope (Alibaba)",
+      "free": true,
+      "avg_seconds_per_task": 63.0,
+      "scores": {
+        "pinchbench": {
+          "best": 77.5,
+          "average": 77.5,
+          "std": 0.0,
+          "runs": [
+            {
+              "score": 77.5,
+              "completed": 20,
+              "total": 24,
+              "date": "2026-04-07"
+            }
+          ],
+          "categories": {
+            "basic": 96.2,
+            "research": 76.0,
+            "creation": 62.3,
+            "execution": 97.3,
+            "understanding": 63.2
+          }
+        },
+        "clawbench_ko": {
+          "best": 91.1,
+          "average": 91.1,
+          "std": 0.0,
+          "runs": [
+            {
+              "score": 91.1,
+              "completed": 10,
+              "total": 10,
+              "date": "2026-04-07"
+            }
+          ],
+          "categories": {
+            "data_processing": 98.5,
+            "document_generation": 79.7,
+            "korean_system": 92.8
+          }
+        },
+        "composite": {
+          "best": 84.3,
+          "average": 84.3
+        }
+      }
+    },
     {
       "id": "solar-pro3",
       "name": "Solar Pro 3",
@@ -25,7 +77,14 @@
               "total": 24,
               "date": "2026-04-07"
             }
-          ]
+          ],
+          "categories": {
+            "basic": 58.0,
+            "research": 73.4,
+            "creation": 45.1,
+            "execution": 77.3,
+            "understanding": 51.5
+          }
         },
         "clawbench_ko": {
           "best": 48.0,
