@@ -107,6 +107,25 @@ def delete_agent(agent_id: str):
     logger.debug("  에이전트 삭제: %s", agent_id)
 
 
+def clear_agent_sessions(agent_id: str):
+    """에이전트의 세션 파일만 정리 (에이전트 자체는 유지)
+
+    태스크 간 컨텍스트 오염을 방지하기 위해 이전 세션의 transcript를
+    삭제한다. 에이전트 재생성 없이 세션만 초기화하므로 게이트웨이 pairing이
+    유지된다.
+    """
+    sessions_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
+    if sessions_dir.exists():
+        for f in sessions_dir.iterdir():
+            if f.is_file():
+                f.unlink()
+        logger.debug("  세션 초기화: %s", agent_id)
+    # sessions.json도 초기화
+    sessions_json = Path.home() / ".openclaw" / "agents" / agent_id / "sessions.json"
+    if sessions_json.exists():
+        sessions_json.write_text("{}", encoding="utf-8")
+
+
 def setup_workspace(workspace: Path, task: dict):
     """워크스페이스를 초기화하고 태스크 입력 파일을 복사"""
     PRESERVE_DIRS = {".git", ".openclaw"}
@@ -466,58 +485,64 @@ def main():
     total_tasks = len(task_ids)
     runs_per_task = args.runs
 
-    for task_idx, task_id in enumerate(task_ids, 1):
-        task = load_task(task_id)
-        all_results[task_id] = []
+    # 에이전트 1회 생성 후 전체 태스크에 재사용
+    # — 태스크마다 재생성하면 게이트웨이 pairing이 매번 필요하여 실패율 급증
+    run_id = uuid.uuid4().hex[:6]
+    model_hash = hashlib.md5(model_slug.encode()).hexdigest()[:6]
+    agent_id = f"cb-{model_hash}-{run_id}"
+    workspace = Path(f"/tmp/claw-bench-ko/{run_id}/workspace")
+    create_agent(agent_id, args.model, workspace)
+    logger.info("   Agent: %s (전체 태스크 재사용)", agent_id)
 
-        for run_i in range(runs_per_task):
-            # PinchBench 스타일 진행 헤더
-            logger.info("\n%s", "=" * 80)
-            logger.info("📋 Task %d/%d (Run %d/%d)",
-                        task_idx, total_tasks, run_i + 1, runs_per_task)
-            logger.info("%s", "=" * 80)
-            logger.info("🤖 Agent starting task: %s", task_id)
-            logger.info("   Task: %s", task["name"])
-            logger.info("   Category: %s", task["category"])
+    try:
+        for task_idx, task_id in enumerate(task_ids, 1):
+            task = load_task(task_id)
+            all_results[task_id] = []
 
-            # 태스크마다 고유 에이전트 생성 (세션 격리)
-            run_id = uuid.uuid4().hex[:6]
-            model_hash = hashlib.md5(model_slug.encode()).hexdigest()[:6]
-            agent_id = f"cb-{model_hash}-{task_id}-{run_i}"
-            workspace = Path(f"/tmp/claw-bench-ko/{run_id}/workspace")
-            create_agent(agent_id, args.model, workspace)
+            for run_i in range(runs_per_task):
+                # PinchBench 스타일 진행 헤더
+                logger.info("\n%s", "=" * 80)
+                logger.info("📋 Task %d/%d (Run %d/%d)",
+                            task_idx, total_tasks, run_i + 1, runs_per_task)
+                logger.info("%s", "=" * 80)
+                logger.info("🤖 Agent starting task: %s", task_id)
+                logger.info("   Task: %s", task["name"])
+                logger.info("   Category: %s", task["category"])
 
-            result = run_single_task(
-                agent_id, task, workspace, args.judge, run_i,
-                verbose=args.verbose,
-            )
-            all_results[task_id].append(result)
+                # 세션만 초기화 — 에이전트/게이트웨이 pairing은 유지
+                clear_agent_sessions(agent_id)
 
-            delete_agent(agent_id)
+                result = run_single_task(
+                    agent_id, task, workspace, args.judge, run_i,
+                    verbose=args.verbose,
+                )
+                all_results[task_id].append(result)
 
-            # PinchBench 스타일 점수 표시
-            score = result["score"]
-            max_score = result["max_score"]
-            score_pct = score / max_score * 100 if max_score > 0 else 0
-            if score >= max_score:
-                emoji = "✅"
-            elif score > 0:
-                emoji = "⚠️"
-            else:
-                emoji = "❌"
+                # PinchBench 스타일 점수 표시
+                score = result["score"]
+                max_score = result["max_score"]
+                score_pct = score / max_score * 100 if max_score > 0 else 0
+                if score >= max_score:
+                    emoji = "✅"
+                elif score > 0:
+                    emoji = "⚠️"
+                else:
+                    emoji = "❌"
 
-            logger.info("%s Task %s: %.1f/%.1f (%.0f%%) - %s",
-                        emoji, task_id, score, max_score, score_pct,
-                        task["grading_type"])
+                logger.info("%s Task %s: %.1f/%.1f (%.0f%%) - %s",
+                            emoji, task_id, score, max_score, score_pct,
+                            task["grading_type"])
 
-            # fail-fast: 첫 태스크가 0점이면 중단
-            if (task_idx == 1 and run_i == 0
-                    and score == 0 and not args.no_fail_fast):
-                logger.error(
-                    "🚨 FAIL FAST: 첫 태스크 (%s) 0%%. "
-                    "벤치마크를 중단합니다. --no-fail-fast로 우회 가능.",
-                    task_id)
-                sys.exit(3)
+                # fail-fast: 첫 태스크가 0점이면 중단
+                if (task_idx == 1 and run_i == 0
+                        and score == 0 and not args.no_fail_fast):
+                    logger.error(
+                        "🚨 FAIL FAST: 첫 태스크 (%s) 0%%. "
+                        "벤치마크를 중단합니다. --no-fail-fast로 우회 가능.",
+                        task_id)
+                    sys.exit(3)
+    finally:
+        delete_agent(agent_id)
 
     total_elapsed = time.time() - total_start
 
