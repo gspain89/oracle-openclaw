@@ -1,11 +1,44 @@
 {
   "meta": {
-    "last_updated": "2026-04-08T00:14:39Z",
-    "total_runs": 4,
-    "generated_at": "2026-04-08T00:14:39Z",
-    "_new_from_raw": 2
+    "last_updated": "2026-04-10T04:23:06Z",
+    "total_runs": 5,
+    "generated_at": "2026-04-10T04:23:06Z",
+    "_new_from_raw": 3
   },
   "models": [
+    {
+      "id": "google/gemma-4-31b-it",
+      "name": "Gemma 4 31B It",
+      "provider": "openrouter",
+      "provider_label": "OpenRouter (Google)",
+      "avg_seconds_per_task": 184.0,
+      "scores": {
+        "pinchbench": {
+          "best": 51.8,
+          "average": 51.8,
+          "std": 0.0,
+          "runs": [
+            {
+              "score": 51.8,
+              "completed": 13,
+              "total": 24,
+              "date": "2026-04-10"
+            }
+          ],
+          "categories": {
+            "basic": 48.3,
+            "research": 46.4,
+            "creation": 41.3,
+            "execution": 74.7,
+            "understanding": 47.0
+          }
+        },
+        "composite": {
+          "best": 51.8,
+          "average": 51.8
+        }
+      }
+    },
     {
       "id": "qwen3.5-122b-a10b",
       "name": "Qwen 3.5 122B",

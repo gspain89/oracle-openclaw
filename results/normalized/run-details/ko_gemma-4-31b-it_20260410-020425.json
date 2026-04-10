@@ -1,0 +1,910 @@
+{
+  "model_id": "google/gemma-4-31b-it",
+  "benchmark": "clawbench_ko",
+  "date": "2026-04-10",
+  "score": 8.8,
+  "tasks": [
+    {
+      "task_id": "addr_parse",
+      "name": "한국 주소 파싱",
+      "category": "data_processing",
+      "grading_type": "automated",
+      "score": 0.0,
+      "execution_time": 150.9,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 addresses.txt 파일을 읽으세요. 한국 주소 20개가 한 줄에 하나씩 적혀 있습니다.\n\n각 주소를 파싱하여 아래 필드로 구조화하세요:\n- original: 원본 주소 문자열 (앞뒤 공백 제거)\n- sido: 시/도 (정식 명칭으로 통일. \"서울시\"→\"서울특별시\", \"경기\"→\"경기도\", \"부산\"→\"부산광역시\" 등)\n- sigungu: 시/군/구\n- road_or_dong: 도로명+번호 또는 동/읍/면+번지\n- detail: 건물명, 동/호수, 층수 등 나머지 상세주소 (없으면 빈 문자열)\n\n결과를 workspace에 result.json 파일로 저장하세요. JSON 배열 형식이며, 각 요소는 위 5개 필드를 포함하는 객체입니다.",
+      "checks": [
+        {
+          "check": {
+            "type": "file_exists",
+            "path": "result.json"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_valid",
+            "path": "result.json"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_array_length",
+            "path": "result.json",
+            "expected": 20
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[0].sido",
+            "expected": "서울특별시"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[1].sido",
+            "expected": "경기도"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[2].sido",
+            "expected": "부산광역시"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[3].sido",
+            "expected": "서울특별시"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[4].sido",
+            "expected": "대전광역시"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[7].sido",
+            "expected": "제주특별자치도"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[12].sido",
+            "expected": "세종특별자치시"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[1].sigungu",
+            "expected": "성남시 분당구"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[5].sigungu",
+            "expected": "연수구"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_has_fields",
+            "path": "result.json",
+            "fields": [
+              "original",
+              "sido",
+              "sigungu",
+              "road_or_dong",
+              "detail"
+            ]
+          },
+          "passed": false
+        }
+      ],
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "num_convert",
+      "name": "한글 숫자 변환",
+      "category": "data_processing",
+      "grading_type": "automated",
+      "score": 0.0,
+      "execution_time": 151.1,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 numbers.txt 파일을 읽으세요. 한국어 숫자 표현 15개가 한 줄에 하나씩 적혀 있습니다.\n\n각 표현을 정수(integer)로 변환하세요. 한글 숫자(삼천이백만), 혼합 표기(1억 5천만), 단위만 있는 표기(3만 5천) 모두 처리해야 합니다.\n\n결과를 workspace에 result.json 파일로 저장하세요. JSON 배열 형식이며, 각 요소는 {\"original\": \"원본 문자열\", \"value\": 정수값} 객체입니다.",
+      "checks": [
+        {
+          "check": {
+            "type": "file_exists",
+            "path": "result.json"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_valid",
+            "path": "result.json"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_array_length",
+            "path": "result.json",
+            "expected": 15
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[0].value",
+            "expected": 32000000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[1].value",
+            "expected": 150000000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[2].value",
+            "expected": 532
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[3].value",
+            "expected": 79
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[4].value",
+            "expected": 300000000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[5].value",
+            "expected": 1234567
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[6].value",
+            "expected": 210000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[7].value",
+            "expected": 35000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[8].value",
+            "expected": 1000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[9].value",
+            "expected": 2300000000000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[10].value",
+            "expected": 123000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[11].value",
+            "expected": 56780000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[12].value",
+            "expected": 89000
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[13].value",
+            "expected": 405
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[14].value",
+            "expected": 2560000000000
+          },
+          "passed": false
+        }
+      ],
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "phone_normalize",
+      "name": "전화번호 정규화",
+      "category": "data_processing",
+      "grading_type": "automated",
+      "score": 0.0,
+      "execution_time": 151.5,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 phones.txt 파일을 읽으세요. 한국 전화번호 25개가 한 줄에 하나씩 다양한 형식으로 적혀 있습니다.\n\n모든 전화번호를 아래 표준 형식으로 정규화하세요:\n- 휴대폰(010): +82-10-XXXX-XXXX\n- 서울(02): +82-2-XXXX-XXXX (8자리인 경우) 또는 +82-2-XXX-XXXX (7자리인 경우)\n- 기타 지역번호(031, 032 등): +82-XX-XXXX-XXXX 또는 +82-XX-XXX-XXXX\n- 인터넷전화(070): +82-70-XXXX-XXXX\n- 수신자부담(080): +82-80-XXX-XXXX\n- 대표번호(1588, 1577, 1544, 1600 등 4자리로 시작): 대표번호는 국제번호가 없으므로 그대로 XXXX-XXXX 형식\n\n결과를 workspace에 result.json 파일로 저장하세요. JSON 배열 형식이며, 각 요소는 {\"original\": \"원본\", \"normalized\": \"정규화된 번호\"} 객체입니다.",
+      "checks": [
+        {
+          "check": {
+            "type": "file_exists",
+            "path": "result.json"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_valid",
+            "path": "result.json"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_array_length",
+            "path": "result.json",
+            "expected": 25
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[0].normalized",
+            "expected": "+82-10-1234-5678"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[1].normalized",
+            "expected": "+82-10-1234-5678"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[2].normalized",
+            "expected": "+82-10-1234-5678"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[5].normalized",
+            "expected": "+82-2-1234-5678"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[6].normalized",
+            "expected": "+82-2-123-4567"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[13].normalized",
+            "expected": "1588-1234"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[14].normalized",
+            "expected": "1577-0000"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[16].normalized",
+            "expected": "+82-70-1234-5678"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_field_equals",
+            "path": "result.json",
+            "field": "[22].normalized",
+            "expected": "+82-80-123-4567"
+          },
+          "passed": false
+        },
+        {
+          "check": {
+            "type": "json_has_fields",
+            "path": "result.json",
+            "fields": [
+              "original",
+              "normalized"
+            ]
+          },
+          "passed": false
+        }
+      ],
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "csv_transform",
+      "name": "은행 거래 CSV 변환",
+      "category": "data_processing",
+      "grading_type": "hybrid",
+      "score": 0.0,
+      "execution_time": 211.9,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 transactions.csv 파일은 한국 은행 거래 내역입니다. 이 파일은 EUC-KR 인코딩으로 되어 있어 UTF-8로 직접 읽으면 깨질 수 있습니다.\n\n다음 변환을 수행하세요:\n1. 인코딩을 EUC-KR에서 UTF-8로 변환\n2. 날짜 컬럼(거래일자)을 ISO 8601 형식(YYYY-MM-DD)으로 통일\n3. 금액 컬럼(입금, 출금, 잔액)에서 쉼표와 '원' 문자를 제거하여 정수로 변환\n4. '유형' 컬럼을 추가: 입금 > 0이면 '입금', 출금 > 0이면 '출금'\n5. 거래일자 기준 오름차순 정렬\n\n결과를 workspace에 result.csv 파일로 저장하세요. UTF-8 인코딩, 첫 행은 헤더(거래일자,적요,입금,출금,잔액,유형)여야 합니다.",
+      "automated": {
+        "score": 0.0,
+        "passed": 0,
+        "total": 7,
+        "details": [
+          {
+            "check": {
+              "type": "file_exists",
+              "path": "result.csv"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "encoding_is",
+              "path": "result.csv",
+              "expected": "utf-8"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "csv_header_equals",
+              "path": "result.csv",
+              "expected": "거래일자,적요,입금,출금,잔액,유형"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "csv_row_count",
+              "path": "result.csv",
+              "expected": 15
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "csv_field_matches_pattern",
+              "path": "result.csv",
+              "column": "거래일자",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "csv_field_is_integer",
+              "path": "result.csv",
+              "column": "입금"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "csv_field_is_integer",
+              "path": "result.csv",
+              "column": "출금"
+            },
+            "passed": false
+          }
+        ]
+      },
+      "judge": {
+        "score": 0.0,
+        "raw_score": 0,
+        "max_score": 100,
+        "breakdown": {
+          "인코딩 변환 정확성": 0,
+          "날짜 형식 통일": 0,
+          "금액 처리": 0,
+          "유형 분류 및 정렬": 0
+        },
+        "feedback": "에이전트가 타임아웃으로 인해 작업을 수행하지 못했으며, result.csv 파일이 생성되지 않아 채점 대상 결과물이 없습니다.",
+        "judge_model": "anthropic/claude-opus-4-6",
+        "judge_duration_seconds": 58.4
+      },
+      "weights": {
+        "automated": 0.5,
+        "judge": 0.5
+      },
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "meeting_minutes",
+      "name": "회의록 작성",
+      "category": "document_generation",
+      "grading_type": "llm_judge",
+      "score": 0.0,
+      "execution_time": 211.3,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 transcript.txt 파일을 읽으세요. 3명이 참여한 프로젝트 회의의 비격식 대화 녹취록입니다.\n\n이 대화 내용을 바탕으로 정식 회의록을 작성하세요. 다음 항목을 반드시 포함해야 합니다:\n- 회의 정보: 일시, 장소, 참석자\n- 안건 목록\n- 각 안건별 논의 내용 요약\n- 결정 사항\n- 후속 조치 (담당자, 기한 포함)\n\n한국 기업에서 사용하는 공식적인 회의록 형식을 따르세요. 존댓말(합니다/습니다)체로 작성하세요.\n\n결과를 workspace에 minutes.md 파일로 저장하세요.",
+      "breakdown": {
+        "형식 준수": 0,
+        "내용 완결성": 0,
+        "한국어 품질": 0,
+        "구조화 수준": 0
+      },
+      "feedback": "에이전트가 타임아웃으로 인해 작업을 수행하지 못했으며, minutes.md 파일이 생성되지 않아 채점 대상 결과물이 없습니다.",
+      "judge_model": "anthropic/claude-opus-4-6",
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "biz_email",
+      "name": "비즈니스 이메일 작성",
+      "category": "document_generation",
+      "grading_type": "llm_judge",
+      "score": 88.0,
+      "execution_time": 207.4,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 context.txt 파일을 읽으세요. 비즈니스 이메일을 작성하기 위한 배경 정보가 들어 있습니다.\n\n이 정보를 바탕으로, 파트너 회사 담당자에게 보내는 정식 비즈니스 이메일을 작성하세요.\n\n이메일 요구사항:\n- 수신자: 한국데이터솔루션 AI사업부 최서영 부장\n- 발신자: 우리 회사(스마트플로우) AI기획팀 정하윤 과장\n- 목적: AI 기반 물류 최적화 솔루션 공동 개발 협력 제안\n- 형식: 제목, 인사말, 배경/목적, 제안 내용, 기대 효과, 일정 제안, 마무리\n- 어투: 비즈니스 존댓말 (합니다/습니다체)\n\n결과를 workspace에 email.txt 파일로 저장하세요.",
+      "breakdown": {
+        "형식 및 구조": 19,
+        "내용 적절성": 28,
+        "한국어 비즈니스 어투": 24,
+        "설득력": 17
+      },
+      "feedback": "context.txt의 핵심 정보(AI 정확도 94.2%, 3단계 로드맵, 물류비 15~25% 절감, 공동 매출 30억원 등)가 모두 정확히 반영되었고 인사말→배경→제안→기대효과→일정→마무리 구조가 잘 갖추어졌으며, 컨퍼런스 인연 언급과 미팅 제안 등 설득력 있는 흐름이 우수하나, '귀사'·'당사' 등 한국 비즈니스 관례 표현이 부족하고 '시의적절' 등 다소 딱딱한 표현이 있어 어투 자연스러움에서 소폭 감점됩니다.",
+      "judge_model": "anthropic/claude-opus-4-6",
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\n`context.txt` 파일의 내용을 바탕으로 한국데이터솔루션 최서영 부장님께 보내는 정식 비즈니스 협력 제안 이메일을 작성하였습니다.\n\n요청하신 대로 **제목, 인사말, 배경/목적, 제안 내용, 기대 효과, 일정 제안, 마무리**의 형식을 갖추었으며, 정중한 비즈니스 존댓말을 사용하였습니다.\n\n작성된 이메일은 `workspace/email.txt` 파일로 저장되었습니다."
+    },
+    {
+      "task_id": "news_summary",
+      "name": "뉴스 브리핑 요약",
+      "category": "document_generation",
+      "grading_type": "llm_judge",
+      "score": 0.0,
+      "execution_time": 211.6,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 articles.txt 파일을 읽으세요. 동일 주제(한국 반도체 산업)에 대한 한국어 뉴스 기사 3건이 구분선(===)으로 나뉘어 있습니다.\n\n3개 기사의 핵심 내용을 통합하여 경영진 대상 브리핑 보고서를 작성하세요.\n\n요구사항:\n- 분량: 400~600자\n- 3개 기사의 핵심 정보를 빠짐없이 반영\n- 중복 내용은 통합하여 한 번만 서술\n- 수치 데이터(투자 금액, 시장 규모 등)는 반드시 포함\n- 존댓말(합니다/습니다체) 사용\n- 제목 포함\n\n결과를 workspace에 summary.md 파일로 저장하세요.",
+      "breakdown": {
+        "정확성": 0,
+        "완전성": 0,
+        "간결성": 0,
+        "한국어 품질": 0
+      },
+      "feedback": "에이전트가 타임아웃으로 인해 작업을 수행하지 못했으며, summary.md 파일이 생성되지 않아 채점 대상 결과물이 없습니다.",
+      "judge_model": "anthropic/claude-opus-4-6",
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "invoice_gen",
+      "name": "세금계산서 생성",
+      "category": "korean_system",
+      "grading_type": "hybrid",
+      "score": 0.0,
+      "execution_time": 211.2,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 order.json 파일을 읽으세요. 주문 데이터가 JSON 형식으로 들어 있습니다.\n\n이 데이터를 바탕으로 한국 세금계산서(전자세금계산서) 형식의 JSON을 생성하세요.\n\n세금계산서 필수 항목 (JSON 키 이름은 반드시 아래 영문 키를 사용):\n- \"supplier\": 공급자 정보 (biz_no, company_name, ceo_name, biz_type, biz_item, address)\n- \"buyer\": 공급받는자 정보 (biz_no, company_name, ceo_name, biz_type, biz_item, address)\n- \"issue_date\": 작성일자\n- \"items\": 품목 배열 (각 품목: name, spec, quantity, unit_price, supply_amount, tax_amount)\n- \"total\": 합계 (supply_amount, tax_amount, total_amount)\n\n계산 규칙:\n- 공급가액(supply_amount) = 수량(quantity) × 단가(unit_price)\n- 세액(tax_amount) = 공급가액 × 0.1 (원 단위 절사)\n- 합계금액(total_amount) = 총 공급가액 + 총 세액\n\n결과를 workspace에 invoice.json 파일로 저장하세요.",
+      "automated": {
+        "score": 0.0,
+        "passed": 0,
+        "total": 9,
+        "details": [
+          {
+            "check": {
+              "type": "file_exists",
+              "path": "invoice.json"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_valid",
+              "path": "invoice.json"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "invoice.json",
+              "field": "supplier"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "invoice.json",
+              "field": "buyer"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "invoice.json",
+              "field": "items"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "invoice.json",
+              "field": "total"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_equals",
+              "path": "invoice.json",
+              "field": "total.supply_amount",
+              "expected": 7900000
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_equals",
+              "path": "invoice.json",
+              "field": "total.tax_amount",
+              "expected": 790000
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_equals",
+              "path": "invoice.json",
+              "field": "total.total_amount",
+              "expected": 8690000
+            },
+            "passed": false
+          }
+        ]
+      },
+      "judge": {
+        "score": 0.0,
+        "raw_score": 0,
+        "max_score": 100,
+        "breakdown": {
+          "계산 정확성": 0,
+          "세금계산서 형식 준수": 0,
+          "데이터 정합성": 0
+        },
+        "feedback": "에이전트가 타임아웃으로 인해 작업을 수행하지 못했으며, invoice.json 파일이 생성되지 않아 채점 대상 결과물이 없습니다.",
+        "judge_model": "anthropic/claude-opus-4-6",
+        "judge_duration_seconds": 35.1
+      },
+      "weights": {
+        "automated": 0.5,
+        "judge": 0.5
+      },
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "resume_parse",
+      "name": "이력서 파싱",
+      "category": "korean_system",
+      "grading_type": "hybrid",
+      "score": 0.0,
+      "execution_time": 211.6,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 resume.txt 파일을 읽으세요. 한국식 이력서 텍스트가 들어 있습니다.\n\n이 이력서를 파싱하여 구조화된 JSON으로 변환하세요.\n\n필수 필드:\n- name: 성명\n- birth_date: 생년월일 (YYYY-MM-DD 형식)\n- phone: 연락처\n- email: 이메일\n- address: 주소\n- education: 학력 배열 [{school, major, degree, start_date, end_date, status}]\n- experience: 경력 배열 [{company, department, position, start_date, end_date, responsibilities}]\n- certifications: 자격증 배열 [{name, issuer, date}]\n- skills: 기술/역량 배열\n\n날짜는 모두 YYYY-MM 또는 YYYY-MM-DD 형식으로 통일하세요. status 필드는 '졸업', '재학', '수료' 중 하나입니다.\n\n결과를 workspace에 result.json 파일로 저장하세요.",
+      "automated": {
+        "score": 0.0,
+        "passed": 0,
+        "total": 11,
+        "details": [
+          {
+            "check": {
+              "type": "file_exists",
+              "path": "result.json"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_valid",
+              "path": "result.json"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_equals",
+              "path": "result.json",
+              "field": "name",
+              "expected": "이서준"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_equals",
+              "path": "result.json",
+              "field": "birth_date",
+              "expected": "1995-03-22"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "result.json",
+              "field": "education"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "result.json",
+              "field": "experience"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "result.json",
+              "field": "certifications"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "result.json",
+              "field": "skills"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_array_min_length",
+              "path": "result.json",
+              "field": "education",
+              "min": 2
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_array_min_length",
+              "path": "result.json",
+              "field": "experience",
+              "min": 2
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_array_min_length",
+              "path": "result.json",
+              "field": "certifications",
+              "min": 3
+            },
+            "passed": false
+          }
+        ]
+      },
+      "judge": {
+        "score": 0.0,
+        "raw_score": 0,
+        "max_score": 100,
+        "breakdown": {
+          "추출 정확도": 0,
+          "날짜 처리": 0,
+          "한국 이력서 이해": 0,
+          "데이터 품질": 0
+        },
+        "feedback": "에이전트가 타임아웃으로 인해 작업을 수행하지 못했으며, result.json 파일이 생성되지 않아 채점 대상 결과물이 없습니다.",
+        "judge_model": "anthropic/claude-opus-4-6",
+        "judge_duration_seconds": 36.8
+      },
+      "weights": {
+        "automated": 0.5,
+        "judge": 0.5
+      },
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    },
+    {
+      "task_id": "regulation_extract",
+      "name": "법규 요구사항 추출",
+      "category": "korean_system",
+      "grading_type": "hybrid",
+      "score": 0.0,
+      "execution_time": 211.1,
+      "status": "success",
+      "timed_out": false,
+      "prompt": "workspace에 있는 regulation.txt 파일을 읽으세요. 한국 법률(개인정보 보호법) 일부 조항이 들어 있습니다.\n\n각 조항에서 의무사항(해야 하는 것)과 금지사항(해서는 안 되는 것)을 추출하여 구조화된 체크리스트를 만드세요.\n\n각 항목의 필수 필드:\n- article: 조항 번호 (예: \"제15조 제1항\")\n- type: 의무사항이면 \"obligation\", 금지사항이면 \"prohibition\"\n- subject: 누가 (의무/금지의 대상)\n- requirement: 무엇을 해야/하면 안 되는지 (한 문장으로 요약)\n- condition: 적용 조건이 있다면 기술 (없으면 null)\n- penalty_reference: 벌칙 조항 참조가 있다면 기술 (없으면 null)\n\n결과를 workspace에 checklist.json 파일로 저장하세요. JSON 객체 형식이며 {\"items\": [...]} 구조입니다.",
+      "automated": {
+        "score": 0.0,
+        "passed": 0,
+        "total": 5,
+        "details": [
+          {
+            "check": {
+              "type": "file_exists",
+              "path": "checklist.json"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_valid",
+              "path": "checklist.json"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_field_exists",
+              "path": "checklist.json",
+              "field": "items"
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_array_min_length",
+              "path": "checklist.json",
+              "field": "items",
+              "min": 8
+            },
+            "passed": false
+          },
+          {
+            "check": {
+              "type": "json_items_have_fields",
+              "path": "checklist.json",
+              "field": "items",
+              "required_fields": [
+                "article",
+                "type",
+                "subject",
+                "requirement"
+              ]
+            },
+            "passed": false
+          }
+        ]
+      },
+      "judge": {
+        "score": 0.0,
+        "raw_score": 0,
+        "max_score": 100,
+        "breakdown": {
+          "추출 완전성": 0,
+          "분류 정확도": 0,
+          "요약 품질": 0,
+          "구조화 수준": 0
+        },
+        "feedback": "에이전트가 타임아웃으로 인해 작업을 수행하지 못했으며, checklist.json 파일이 생성되지 않아 채점 대상 결과물이 없습니다.",
+        "judge_model": "anthropic/claude-opus-4-6",
+        "judge_duration_seconds": 36.6
+      },
+      "weights": {
+        "automated": 0.5,
+        "judge": 0.5
+      },
+      "agent_response": "\u001b[35m[agents]\u001b[39m \u001b[36minherited auth-profiles from main agent\u001b[39m\nRequest timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+    }
+  ]
+}

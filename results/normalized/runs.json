@@ -1,11 +1,30 @@
 {
   "meta": {
-    "generated_at": "2026-04-08T00:14:39Z",
-    "total": 9,
-    "included": 4,
+    "generated_at": "2026-04-10T04:23:06Z",
+    "total": 10,
+    "included": 5,
     "excluded": 5
   },
   "runs": [
+    {
+      "file": "results/raw/pinchbench/gemma-4-31b-it_20260409-235341.json",
+      "rm_path": "results/raw/pinchbench/gemma-4-31b-it_20260409-235341.json",
+      "benchmark": "pinchbench",
+      "model_id": "google/gemma-4-31b-it",
+      "score": 51.8,
+      "completed": 13,
+      "total": 24,
+      "date": "2026-04-10",
+      "included": true,
+      "categories": {
+        "basic": 48.3,
+        "research": 46.4,
+        "creation": 41.3,
+        "execution": 74.7,
+        "understanding": 47.0
+      },
+      "detail_file": "run-details/pb_gemma-4-31b-it_20260409-235341.json"
+    },
     {
       "file": "results/raw/pinchbench/upstage_solar-pro3_20260407-113533.json",
       "rm_path": "results/raw/pinchbench/upstage_solar-pro3_20260407-113533.json",
