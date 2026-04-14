@@ -208,8 +208,17 @@ def collect_workspace_files(workspace: Path) -> dict:
 
 def run_single_task(agent_id: str, task: dict, workspace: Path,
                     judge_model: str, run_index: int,
-                    verbose: bool = False) -> dict:
-    """단일 태스크 1회 실행 + 채점"""
+                    verbose: bool = False,
+                    no_judge: bool = False,
+                    artifacts_dir: Path | None = None) -> dict:
+    """단일 태스크 1회 실행 + 채점
+
+    no_judge=True: llm_judge은 pending_manual_review(score=0)로 보류,
+                    hybrid은 automated 가중치만 채점.
+    artifacts_dir: 지정 시 task 종료 직후 워크스페이스/세션/프롬프트/stdout을
+                    {artifacts_dir}/{task_id}/에 복사. 다음 태스크의
+                    clear_agent_sessions 호출 전에 실행되어야 세션이 보존됨.
+    """
     task_id = task["id"]
     session_id = f"clawbench_{task_id}_{run_index}_{uuid.uuid4().hex[:8]}"
 
@@ -246,11 +255,31 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
             logger.info("    [VERBOSE] Stdout (전문): %s",
                          agent_result["stdout"][:2000])
 
-    # 채점
-    from grader import grade_task
-    grade_result = grade_task(
-        task, workspace, agent_result["stdout"], judge_model
-    )
+    # 채점 — --no-judge 시 judge 의존 항목은 보류
+    from grader import grade_task, grade_automated
+    grading_type = task["grading_type"]
+    if no_judge and grading_type == "llm_judge":
+        grade_result = {
+            "score": 0.0,
+            "status": "pending_manual_review",
+            "note": "--no-judge 모드: judge 호출 생략, 수동 채점 대기",
+        }
+    elif no_judge and grading_type == "hybrid":
+        auto_only = grade_automated(task, workspace)
+        auto_weight = task["grading"]["automated"].get("weight", 0.5)
+        judge_weight = task["grading"]["judge"].get("weight", 0.5)
+        grade_result = {
+            "score": round(auto_only["score"] * auto_weight, 4),
+            "automated": auto_only,
+            "judge": {"status": "pending_manual_review"},
+            "weights": {"automated": auto_weight, "judge": judge_weight},
+            "status": "partial_automated_only",
+            "note": "--no-judge 모드: automated 가중치만 반영",
+        }
+    else:
+        grade_result = grade_task(
+            task, workspace, agent_result["stdout"], judge_model
+        )
 
     # 0점 진단 — stdout에 결과가 있지만 파일로 저장 안 된 경우 등 원인 특정
     if grade_result["score"] == 0:
@@ -289,6 +318,61 @@ def run_single_task(agent_id: str, task: dict, workspace: Path,
     agent_response = (agent_result.get("stdout") or "").strip()
     if len(agent_response) > 5000:
         agent_response = agent_response[:5000] + "\n... (truncated)"
+
+    # artifact 보존 — 반드시 다음 태스크의 clear_agent_sessions 이전에 완료되어야 함
+    # (clear_agent_sessions는 이 함수 반환 직후 main 루프에서 호출됨)
+    if artifacts_dir is not None:
+        task_artifacts = artifacts_dir / task_id
+        if task_artifacts.exists():
+            shutil.rmtree(task_artifacts, ignore_errors=True)
+        task_artifacts.mkdir(parents=True, exist_ok=True)
+
+        ws_snap = task_artifacts / "workspace"
+        if workspace.exists():
+            try:
+                shutil.copytree(
+                    workspace, ws_snap,
+                    ignore=shutil.ignore_patterns(".git", ".openclaw"),
+                )
+            except Exception as e:
+                logger.warning("    workspace 스냅샷 실패: %s", e)
+
+        session_src = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
+        session_dst = task_artifacts / "session"
+        session_dst.mkdir(parents=True, exist_ok=True)
+        session_copied = 0
+        if session_src.exists():
+            for sf in session_src.glob("*.jsonl"):
+                try:
+                    shutil.copy2(sf, session_dst / sf.name)
+                    session_copied += 1
+                except Exception as e:
+                    logger.warning("    세션 복사 실패 %s: %s", sf.name, e)
+
+        (task_artifacts / "agent_stdout.txt").write_text(
+            agent_result.get("stdout") or "", encoding="utf-8"
+        )
+        (task_artifacts / "agent_stderr.txt").write_text(
+            agent_result.get("stderr") or "", encoding="utf-8"
+        )
+        (task_artifacts / "prompt.txt").write_text(
+            task.get("prompt", ""), encoding="utf-8"
+        )
+        meta = {
+            "task_id": task_id,
+            "name": task["name"],
+            "category": task["category"],
+            "grading_type": grading_type,
+            "session_id": session_id,
+            "agent_returncode": agent_result["returncode"],
+            "timed_out": agent_result["timed_out"],
+            "duration_seconds": agent_result["duration_seconds"],
+            "session_files_copied": session_copied,
+        }
+        (task_artifacts / "meta.json").write_text(
+            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        logger.info("    artifact 저장: %s (세션 %d파일)", task_artifacts, session_copied)
 
     return {
         "task_id": task_id,
@@ -430,25 +514,33 @@ def main():
                         help="첫 태스크 0점이어도 계속 실행")
     parser.add_argument("--skip-preflight", action="store_true",
                         help="모델 사전 검증 건너뜀 (shell script에서 이미 검증한 경우)")
+    parser.add_argument("--no-judge", action="store_true",
+                        help="judge 호출 생략. llm_judge은 pending_manual_review로 보류, hybrid은 automated 가중치만 채점")
+    parser.add_argument("--save-artifacts", action="store_true",
+                        help="태스크별 워크스페이스/세션/프롬프트/stdout을 output_dir/artifacts/<task_id>/에 보존")
     args = parser.parse_args()
 
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
     # ── 모델 사전 검증 (preflight) ──
+    # --no-judge 시 judge 모델은 등록 불필요하므로 검증 건너뜀
     if args.skip_preflight:
         logger.debug("모델 사전 검증 건너뜀 (--skip-preflight)")
     else:
         _preflight_check_model(args.model, "Model")
-        _preflight_check_model(args.judge, "Judge")
+        if not args.no_judge:
+            _preflight_check_model(args.judge, "Judge")
 
     manifest = load_manifest()
     logger.info("=" * 80)
     logger.info("🦀 ClawBench-KO v%s", manifest["version"])
     logger.info("=" * 80)
     logger.info("   Model: %s", args.model)
-    logger.info("   Judge: %s", args.judge)
+    logger.info("   Judge: %s", args.judge if not args.no_judge else "(disabled — --no-judge)")
     logger.info("   Runs:  %d", args.runs)
+    if args.save_artifacts:
+        logger.info("   Artifacts: enabled")
     logger.info("")
 
     # 실행할 태스크 목록 결정
@@ -478,6 +570,12 @@ def main():
     else:
         output_dir = SCRIPT_DIR / "results" / f"{model_slug}_{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    artifacts_dir = None
+    if args.save_artifacts:
+        artifacts_dir = output_dir / "artifacts"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("   Artifacts dir: %s", artifacts_dir)
 
     # 태스크 실행
     all_results = {}  # task_id → [run results]
@@ -515,6 +613,8 @@ def main():
                 result = run_single_task(
                     agent_id, task, workspace, args.judge, run_i,
                     verbose=args.verbose,
+                    no_judge=args.no_judge,
+                    artifacts_dir=artifacts_dir,
                 )
                 all_results[task_id].append(result)
 
@@ -534,13 +634,19 @@ def main():
                             task["grading_type"])
 
                 # fail-fast: 첫 태스크가 0점이면 중단
+                # --no-judge 의 pending_manual_review / partial_automated_only 는
+                # 실패가 아니라 수동 채점 대기 상태이므로 fail-fast 에서 제외한다.
                 if (task_idx == 1 and run_i == 0
                         and score == 0 and not args.no_fail_fast):
-                    logger.error(
-                        "🚨 FAIL FAST: 첫 태스크 (%s) 0%%. "
-                        "벤치마크를 중단합니다. --no-fail-fast로 우회 가능.",
-                        task_id)
-                    sys.exit(3)
+                    status = result.get("grading", {}).get("status", "")
+                    if status in ("pending_manual_review", "partial_automated_only"):
+                        logger.info("    (--no-judge pending — fail-fast 건너뜀)")
+                    else:
+                        logger.error(
+                            "🚨 FAIL FAST: 첫 태스크 (%s) 0%%. "
+                            "벤치마크를 중단합니다. --no-fail-fast로 우회 가능.",
+                            task_id)
+                        sys.exit(3)
     finally:
         delete_agent(agent_id)
 

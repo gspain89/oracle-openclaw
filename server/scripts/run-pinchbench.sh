@@ -1,14 +1,28 @@
 #!/usr/bin/env bash
 # run-pinchbench.sh — 단일 모델 PinchBench 실행
-# 사용법: bash run-pinchbench.sh <model_id> [--dry-run]
+# 사용법: bash run-pinchbench.sh <model_id> [--dry-run] [--no-judge] [--save-artifacts]
 # 예시:   bash run-pinchbench.sh arcee-ai/trinity-large-preview:free
 set -euo pipefail
 
 MODEL_ID="${1:-}"
-DRY_RUN="${2:-}"
+shift || true
+
+# 나머지 인자 파싱
+DRY_RUN=""
+NO_JUDGE=""
+SAVE_ARTIFACTS=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run) DRY_RUN="--dry-run"; shift ;;
+    --no-judge) NO_JUDGE="--no-judge"; shift ;;
+    --save-artifacts) SAVE_ARTIFACTS="1"; shift ;;
+    *) echo "알 수 없는 옵션: $1"; exit 1 ;;
+  esac
+done
 
 if [ -z "$MODEL_ID" ]; then
-  echo "사용법: bash run-pinchbench.sh <model_id> [--dry-run]"
+  echo "사용법: bash run-pinchbench.sh <model_id> [--dry-run] [--no-judge] [--save-artifacts]"
   echo "예시:   bash run-pinchbench.sh arcee-ai/trinity-large-preview:free"
   exit 1
 fi
@@ -31,7 +45,15 @@ echo "=== PinchBench 실행 ==="
 echo "모델: $MODEL_ID"
 echo "시각: $TIMESTAMP"
 echo "출력 디렉토리: $RUN_OUTPUT_DIR"
+[ -n "$NO_JUDGE" ] && echo "옵션: --no-judge (judge 호출 생략, llm_judge/hybrid 수동 채점 대기)"
+[ -n "$SAVE_ARTIFACTS" ] && echo "옵션: --save-artifacts (워크스페이스/세션 보존)"
 echo ""
+
+# 래퍼를 사용할지 결정 (--no-judge 또는 --save-artifacts 요청 시)
+USE_WRAPPER=""
+if [ -n "$NO_JUDGE" ] || [ -n "$SAVE_ARTIFACTS" ]; then
+  USE_WRAPPER="1"
+fi
 
 # ── 사전 확인 ──
 if [ ! -d "$PINCHBENCH_DIR" ]; then
@@ -61,7 +83,11 @@ fi
 # ── Dry run ──
 if [ "$DRY_RUN" = "--dry-run" ]; then
   echo "[DRY RUN] 실제 실행하지 않음"
-  echo "  명령어: cd $PINCHBENCH_DIR && uv run scripts/benchmark.py --model $OPENCLAW_MODEL_ID --output-dir $RUN_OUTPUT_DIR --no-upload --no-fail-fast"
+  if [ -n "$USE_WRAPPER" ]; then
+    echo "  명령어: cd $PINCHBENCH_DIR && uv run scripts/pinchbench_wrapper.py --model $OPENCLAW_MODEL_ID --output-dir $RUN_OUTPUT_DIR --no-upload --no-fail-fast $NO_JUDGE ${SAVE_ARTIFACTS:+--save-artifacts-dir $RUN_OUTPUT_DIR/artifacts}"
+  else
+    echo "  명령어: cd $PINCHBENCH_DIR && uv run scripts/benchmark.py --model $OPENCLAW_MODEL_ID --output-dir $RUN_OUTPUT_DIR --no-upload --no-fail-fast"
+  fi
   exit 0
 fi
 
@@ -89,13 +115,44 @@ export PINCHBENCH_JUDGE_MAX_MSG_CHARS=100000
 # --no-upload: 외부 서버 업로드 방지
 # --no-fail-fast: 실패해도 나머지 태스크 계속
 # full 24 tasks 실행 (judge 태스크 포함)
-uv run scripts/benchmark.py \
-  --model "$OPENCLAW_MODEL_ID" \
-  --judge "anthropic/claude-opus-4-6" \
-  --output-dir "$RUN_OUTPUT_DIR" \
-  --no-upload \
-  --no-fail-fast \
-  2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
+if [ -n "$USE_WRAPPER" ]; then
+  # --no-judge / --save-artifacts 요청 시 래퍼 사용
+  # 로컬 repo의 pinchbench_wrapper.py를 PinchBench scripts/ 로 복사해야
+  # lib_agent/lib_grading import가 동작함
+  WRAPPER_SRC="$REPO_ROOT/server/python/pinchbench_wrapper.py"
+  WRAPPER_DST="$PINCHBENCH_DIR/scripts/pinchbench_wrapper.py"
+  if [ ! -f "$WRAPPER_SRC" ]; then
+    echo "ERROR: 래퍼 미발견 — $WRAPPER_SRC"
+    exit 1
+  fi
+  cp "$WRAPPER_SRC" "$WRAPPER_DST"
+  echo "  래퍼 배치: $WRAPPER_DST"
+
+  WRAPPER_EXTRA=""
+  if [ -n "$SAVE_ARTIFACTS" ]; then
+    WRAPPER_EXTRA="--save-artifacts-dir $RUN_OUTPUT_DIR/artifacts"
+  fi
+
+  # --judge 를 빈 값으로 두면 PinchBench가 기본값을 쓰므로, 래퍼의 --no-judge
+  # 패치가 모든 judge 호출을 가로챈다. --judge 는 호환을 위해 dummy로 둔다.
+  uv run scripts/pinchbench_wrapper.py \
+    --model "$OPENCLAW_MODEL_ID" \
+    --judge "anthropic/claude-opus-4-6" \
+    --output-dir "$RUN_OUTPUT_DIR" \
+    --no-upload \
+    --no-fail-fast \
+    $NO_JUDGE \
+    $WRAPPER_EXTRA \
+    2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
+else
+  uv run scripts/benchmark.py \
+    --model "$OPENCLAW_MODEL_ID" \
+    --judge "anthropic/claude-opus-4-6" \
+    --output-dir "$RUN_OUTPUT_DIR" \
+    --no-upload \
+    --no-fail-fast \
+    2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
+fi
 
 END_SEC=$(date +%s)
 ELAPSED=$((END_SEC - START_SEC))
@@ -131,7 +188,16 @@ except Exception as e:
   echo "--- Transcript 추출 ---"
   EXTRACT_SCRIPT="$REPO_ROOT/server/python/extract_transcripts.py"
   if [ -f "$EXTRACT_SCRIPT" ]; then
-    python3 "$EXTRACT_SCRIPT" --result "$RESULT_FILE" 2>&1 || echo "  (transcript 추출 실패 — 계속 진행)"
+    # --save-artifacts 시 래퍼가 태스크별로 세션을 복사해둔 경로를 우선 사용.
+    # 그렇지 않으면 agent-id 자동 탐색 Mode 2로 fallback (세션이 남아있는 경우에만).
+    if [ -n "$SAVE_ARTIFACTS" ] && [ -d "$RUN_OUTPUT_DIR/artifacts" ]; then
+      python3 "$EXTRACT_SCRIPT" \
+        --result "$RESULT_FILE" \
+        --task-sessions-dir "$RUN_OUTPUT_DIR/artifacts" \
+        2>&1 || echo "  (transcript 추출 실패 — 계속 진행)"
+    else
+      python3 "$EXTRACT_SCRIPT" --result "$RESULT_FILE" 2>&1 || echo "  (transcript 추출 실패 — 계속 진행)"
+    fi
   else
     echo "  (extract_transcripts.py 없음 — 건너뜀)"
   fi
@@ -142,6 +208,12 @@ except Exception as e:
 
   # ── 0% 태스크 재시도 (1회) ──
   # 1차 실행에서 0%인 태스크만 추출하여 1회 재실행. 결과를 1차에 병합.
+  # --no-judge 시에는 llm_judge/hybrid 태스크가 pending으로 0점이 정상이므로 재시도 건너뜀.
+  if [ -n "$NO_JUDGE" ]; then
+    echo ""
+    echo "--no-judge 모드: 0% 재시도 건너뜀 (judge/hybrid는 수동 채점 대상)"
+    FAILED_TASKS=""
+  else
   FAILED_TASKS=$(python3 -c "
 import json
 with open('$RESULT_FILE') as f:
@@ -219,6 +291,7 @@ with open('$RESULT_FILE', 'w') as f:
     echo ""
     echo "0% 태스크 없음 — 재시도 불필요"
   fi
+  fi  # end NO_JUDGE if/else
 else
   echo ""
   echo "========================================="
