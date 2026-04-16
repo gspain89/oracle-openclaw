@@ -1,8 +1,8 @@
 {
   "meta": {
-    "last_updated": "2026-04-10T04:23:06Z",
-    "total_runs": 5,
-    "generated_at": "2026-04-10T04:23:06Z",
+    "last_updated": "2026-04-15T00:17:26Z",
+    "total_runs": 7,
+    "generated_at": "2026-04-15T00:17:26Z",
     "_new_from_raw": 3
   },
   "models": [
@@ -95,18 +95,24 @@
       "name": "Solar Pro 3",
       "provider": "upstage",
       "provider_label": "Upstage",
-      "avg_seconds_per_task": 89.0,
+      "avg_seconds_per_task": 85.0,
       "scores": {
         "pinchbench": {
           "best": 62.1,
-          "average": 62.1,
-          "std": 0.0,
+          "average": 60.8,
+          "std": 1.91,
           "runs": [
             {
               "score": 62.1,
               "completed": 16,
               "total": 24,
               "date": "2026-04-07"
+            },
+            {
+              "score": 59.4,
+              "completed": 15,
+              "total": 24,
+              "date": "2026-04-14"
             }
           ],
           "categories": {
@@ -118,26 +124,32 @@
           }
         },
         "clawbench_ko": {
-          "best": 48.0,
-          "average": 48.0,
-          "std": 0.0,
+          "best": 56.6,
+          "average": 52.3,
+          "std": 6.08,
           "runs": [
             {
               "score": 48.0,
               "completed": 9,
               "total": 10,
               "date": "2026-04-07"
+            },
+            {
+              "score": 56.6,
+              "completed": 8,
+              "total": 10,
+              "date": "2026-04-14"
             }
           ],
           "categories": {
-            "data_processing": 32.3,
-            "document_generation": 74.0,
-            "korean_system": 43.0
+            "data_processing": 28.6,
+            "document_generation": 87.3,
+            "korean_system": 63.1
           }
         },
         "composite": {
-          "best": 55.05,
-          "average": 55.05
+          "best": 59.35,
+          "average": 56.55
         }
       }
     }

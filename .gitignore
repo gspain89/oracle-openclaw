@@ -18,6 +18,9 @@ site/.astro/
 __pycache__/
 *.pyc
 
+# Docs (local reference only)
+docs/
+
 # OS
 .DS_Store
 
@@ -26,3 +29,4 @@ results/raw/
 
 # claw-bench-ko runtime output
 server/claw-bench-ko/results/
+server/claw-bench-ko/benchmark.log

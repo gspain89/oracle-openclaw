@@ -31,6 +31,8 @@ JUDGE="anthropic/claude-opus-4-6"
 RUNS=1
 DRY_RUN=""
 EXTRA_ARGS=""
+NO_JUDGE=""
+SAVE_ARTIFACTS=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -39,16 +41,23 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN="--dry-run"; shift ;;
     --task)   EXTRA_ARGS="$EXTRA_ARGS --task $2"; shift 2 ;;
     --no-fail-fast) EXTRA_ARGS="$EXTRA_ARGS --no-fail-fast"; shift ;;
+    --no-judge) NO_JUDGE="--no-judge"; shift ;;
+    --save-artifacts) SAVE_ARTIFACTS="--save-artifacts"; shift ;;
     *) echo "알 수 없는 옵션: $1"; exit 1 ;;
   esac
 done
 
 echo "=== ClawBench-KO 실행 ==="
 echo "모델: $MODEL_ID (OpenClaw: $OPENCLAW_MODEL_ID)"
-echo "Judge: $JUDGE"
+if [ -n "$NO_JUDGE" ]; then
+  echo "Judge: (비활성화 — --no-judge)"
+else
+  echo "Judge: $JUDGE"
+fi
 echo "반복: ${RUNS}회"
 echo "시각: $TIMESTAMP"
 echo "출력: $RUN_OUTPUT_DIR"
+[ -n "$SAVE_ARTIFACTS" ] && echo "Artifacts: 활성화"
 echo ""
 
 # ── 사전 확인 ──
@@ -72,6 +81,8 @@ python3 "$BENCH_DIR/runner.py" \
   --output-dir "$RUN_OUTPUT_DIR" \
   --skip-preflight \
   --no-fail-fast \
+  $NO_JUDGE \
+  $SAVE_ARTIFACTS \
   $DRY_RUN \
   $EXTRA_ARGS \
   2>&1 | tee "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log"
@@ -89,8 +100,32 @@ if [ -f "$RESULT_FILE" ]; then
   cp "$RESULT_FILE" "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json"
   echo "결과 복사: $RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json"
 
+  # ── transcript 추출 (--save-artifacts 시) ──
+  # runner.py가 artifacts/<task_id>/session/*.jsonl 에 세션을 보존한 경우,
+  # extract_transcripts.py Mode 1로 읽어 results.json에 tool_calls / tool_details 를 병합.
+  if [ -n "$SAVE_ARTIFACTS" ] && [ -d "$RUN_OUTPUT_DIR/artifacts" ]; then
+    EXTRACT_PY="$REPO_ROOT/server/python/extract_transcripts.py"
+    if [ -f "$EXTRACT_PY" ]; then
+      echo ""
+      echo "=== transcript 추출 ==="
+      python3 "$EXTRACT_PY" \
+        --result "$RESULT_FILE" \
+        --task-sessions-dir "$RUN_OUTPUT_DIR/artifacts" \
+        2>&1 | tee -a "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.log" || \
+        echo "  ⚠️ transcript 추출 실패 (무시)"
+      cp "$RESULT_FILE" "$RESULTS_DIR/${SAFE_NAME}_${TIMESTAMP}.json" 2>/dev/null || true
+    fi
+  fi
+
   # ── 0% 태스크 재시도 (1회) ──
   # 1차 실행에서 0%인 태스크만 추출하여 1회 재실행. 결과를 1차에 병합.
+  # --no-judge 시에는 llm_judge/hybrid 태스크가 수동 채점 대기로 0점이 정상이므로
+  # 재시도 로직을 건너뛴다.
+  if [ -n "$NO_JUDGE" ]; then
+    echo ""
+    echo "--no-judge 모드: 0% 재시도 건너뜀 (수동 채점 대상)"
+    FAILED_TASKS=""
+  else
   FAILED_TASKS=$(python3 -c "
 import json
 with open('$RESULT_FILE') as f:
@@ -174,4 +209,5 @@ with open('$RESULT_FILE', 'w') as f:
     echo ""
     echo "0% 태스크 없음 — 재시도 불필요"
   fi
+  fi  # end NO_JUDGE if/else
 fi

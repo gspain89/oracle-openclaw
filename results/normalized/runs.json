@@ -1,11 +1,62 @@
 {
   "meta": {
-    "generated_at": "2026-04-10T04:23:06Z",
-    "total": 10,
-    "included": 5,
-    "excluded": 5
+    "generated_at": "2026-04-15T00:17:26Z",
+    "total": 13,
+    "included": 7,
+    "excluded": 6
   },
   "runs": [
+    {
+      "file": "results/raw/pinchbench/upstage_solar-pro3_20260414-050152.json",
+      "rm_path": "results/raw/pinchbench/upstage_solar-pro3_20260414-050152.json",
+      "benchmark": "pinchbench",
+      "model_id": "solar-pro3",
+      "score": 59.4,
+      "completed": 15,
+      "total": 24,
+      "date": "2026-04-14",
+      "included": true,
+      "categories": {
+        "basic": 84.2,
+        "research": 33.2,
+        "creation": 69.6,
+        "execution": 63.3,
+        "understanding": 63.1
+      },
+      "detail_file": "run-details/pb_upstage_solar-pro3_20260414-050152.json"
+    },
+    {
+      "file": "results/raw/korean/upstage_solar-pro3_20260414-045856.json",
+      "rm_path": "results/raw/korean/upstage_solar-pro3_20260414-045856.json",
+      "benchmark": "clawbench_ko",
+      "model_id": "solar-pro3",
+      "score": 56.6,
+      "completed": 8,
+      "total": 10,
+      "date": "2026-04-14",
+      "included": true,
+      "categories": {
+        "data_processing": 28.6,
+        "document_generation": 87.3,
+        "korean_system": 63.1
+      },
+      "detail_file": "run-details/ko_upstage_solar-pro3_20260414-045856.json"
+    },
+    {
+      "file": "results/raw/korean/upstage_solar-pro3_20260414-044835.json",
+      "rm_path": "results/raw/korean/upstage_solar-pro3_20260414-044835.json",
+      "benchmark": "clawbench_ko",
+      "model_id": "solar-pro3",
+      "score": 92.3,
+      "completed": 1,
+      "total": 1,
+      "date": "2026-04-14",
+      "included": false,
+      "skip_reason": "부분 실행 (1/10 태스크)",
+      "categories": {
+        "data_processing": 92.3
+      }
+    },
     {
       "file": "results/raw/pinchbench/gemma-4-31b-it_20260409-235341.json",
       "rm_path": "results/raw/pinchbench/gemma-4-31b-it_20260409-235341.json",
@@ -64,21 +115,21 @@
       "detail_file": "run-details/pb_qwen3.5-122b-a10b_20260407-152030.json"
     },
     {
-      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-232404.json",
-      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-232404.json",
+      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910.json",
+      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910.json",
       "benchmark": "clawbench_ko",
       "model_id": "qwen3.5-122b-a10b",
-      "score": 91.1,
-      "completed": 10,
+      "score": 0.0,
+      "completed": 0,
       "total": 10,
       "date": "2026-04-07",
-      "included": true,
+      "included": false,
+      "skip_reason": "전체 0% (인프라/설정 실패 추정)",
       "categories": {
-        "data_processing": 98.5,
-        "document_generation": 79.7,
-        "korean_system": 92.8
-      },
-      "detail_file": "run-details/ko_qwen3_5-122b-a10b_20260407-232404.json"
+        "data_processing": 0.0,
+        "document_generation": 0.0,
+        "korean_system": 0.0
+      }
     },
     {
       "file": "results/raw/korean/upstage_solar-pro3_20260407-140921.json",
@@ -98,36 +149,21 @@
       "detail_file": "run-details/ko_upstage_solar-pro3_20260407-140921.json"
     },
     {
-      "file": "results/raw/korean/solar-pro3_20260407-053225.json",
-      "rm_path": "results/raw/korean/solar-pro3_20260407-053225.json",
-      "benchmark": "clawbench_ko",
-      "model_id": "solar-pro3",
-      "score": 84.6,
-      "completed": 1,
-      "total": 1,
-      "date": "2026-04-07",
-      "included": false,
-      "skip_reason": "부분 실행 (1/10 태스크)",
-      "categories": {
-        "data_processing": 84.6
-      }
-    },
-    {
-      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910.json",
-      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-162910.json",
+      "file": "results/raw/korean/qwen3_5-122b-a10b_20260407-232404.json",
+      "rm_path": "results/raw/korean/qwen3_5-122b-a10b_20260407-232404.json",
       "benchmark": "clawbench_ko",
       "model_id": "qwen3.5-122b-a10b",
-      "score": 0.0,
-      "completed": 0,
+      "score": 91.1,
+      "completed": 10,
       "total": 10,
       "date": "2026-04-07",
-      "included": false,
-      "skip_reason": "전체 0% (인프라/설정 실패 추정)",
+      "included": true,
       "categories": {
-        "data_processing": 0.0,
-        "document_generation": 0.0,
-        "korean_system": 0.0
-      }
+        "data_processing": 98.5,
+        "document_generation": 79.7,
+        "korean_system": 92.8
+      },
+      "detail_file": "run-details/ko_qwen3_5-122b-a10b_20260407-232404.json"
     },
     {
       "file": "results/raw/korean/deepseek-reasoner_20260407-060652.json",
@@ -145,18 +181,18 @@
       }
     },
     {
-      "file": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry/results.json",
-      "rm_path": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry",
+      "file": "results/raw/korean/solar-pro3_20260407-053225.json",
+      "rm_path": "results/raw/korean/solar-pro3_20260407-053225.json",
       "benchmark": "clawbench_ko",
       "model_id": "solar-pro3",
-      "score": 0.0,
-      "completed": 0,
+      "score": 84.6,
+      "completed": 1,
       "total": 1,
       "date": "2026-04-07",
       "included": false,
       "skip_reason": "부분 실행 (1/10 태스크)",
       "categories": {
-        "data_processing": 0.0
+        "data_processing": 84.6
       }
     },
     {
@@ -174,6 +210,21 @@
         "data_processing": 0.0,
         "document_generation": 0.0,
         "korean_system": 0.0
+      }
+    },
+    {
+      "file": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry/results.json",
+      "rm_path": "results/raw/korean/upstage_solar-pro3_20260407-140921_retry",
+      "benchmark": "clawbench_ko",
+      "model_id": "solar-pro3",
+      "score": 0.0,
+      "completed": 0,
+      "total": 1,
+      "date": "2026-04-07",
+      "included": false,
+      "skip_reason": "부분 실행 (1/10 태스크)",
+      "categories": {
+        "data_processing": 0.0
       }
     }
   ]
